@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>사내 투표</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; text-align: center; padding-top: 50px; background: #f5f5f5; }
+        .box { background: white; display: inline-block; padding: 30px; border-radius: 10px; shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        button { padding: 15px 30px; margin: 10px; font-size: 18px; cursor: pointer; border: none; border-radius: 5px; background: #007bff; color: white; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>🗳️ 오늘 점심 메뉴 투표</h2>
+        <button onclick="vote('짜장면')">짜장면</button>
+        <button onclick="vote('짬뽕')">짬뽕</button>
+        <p id="status"></p>
+    </div>
+
+    <script>
+        function vote(item) {
+            const url = "https://script.google.com/macros/s/AKfycbx7GYZhYLsYWm-NXv9mecvl2TAEFxExWjURWBHXdmfpQz2h9kwGGQ5xi-uw9vWp9ZaL/exec";
+            document.getElementById('status').innerText = "전송 중...";
+            fetch(url, { method: "POST", body: JSON.stringify({ choice: item }) })
+            .then(() => {
+                document.getElementById('status').innerText = "투표 완료!";
+                document.querySelectorAll('button').forEach(b => b.disabled = true);
+            });
+        }
+    </script>
+</body>
+</html>
