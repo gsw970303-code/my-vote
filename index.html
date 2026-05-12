@@ -2,31 +2,126 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>사내 투표</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lunch 2.0</title>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; text-align: center; padding-top: 50px; background: #f5f5f5; }
-        .box { background: white; display: inline-block; padding: 30px; border-radius: 10px; shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        button { padding: 15px 30px; margin: 10px; font-size: 18px; cursor: pointer; border: none; border-radius: 5px; background: #007bff; color: white; }
+        body { font-family: sans-serif; background: #1a1a1a; color: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .container { background: #2d2d2d; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .timer { font-size: 48px; color: #adff2f; font-weight: bold; margin: 20px 0; }
+        .btn { width: 100%; padding: 15px; margin: 8px 0; border: none; border-radius: 10px; font-size: 18px; cursor: pointer; font-weight: bold; }
+        .btn-vote { background: #444; color: white; border: 1px solid #555; }
+        .btn-vote:hover { background: #adff2f; color: black; }
+        .btn-submit { background: #adff2f; color: black; margin-top: 20px; }
+        input, select { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: none; font-size: 16px; box-sizing: border-box; }
+        .hidden { display: none; }
+        #status { color: #aaa; margin-top: 15px; }
     </style>
 </head>
 <body>
-    <div class="box">
-        <h2>🗳️ 오늘 점심 메뉴 투표</h2>
-        <button onclick="vote('짜장면')">짜장면</button>
-        <button onclick="vote('짬뽕')">짬뽕</button>
+    <div class="container">
+        <div id="loading">데이터 불러오는 중...</div>
+
+        <div id="votingSection" class="hidden">
+            <h2>🗳️ 식당 투표 (5분)</h2>
+            <div class="timer" id="timer">05:00</div>
+            <div id="resButtons"></div>
+        </div>
+
+        <div id="orderingSection" class="hidden">
+            <h2 id="winnerInfo" style="color:#adff2f"></h2>
+            <p>메뉴를 선택해 주세요.</p>
+            <input type="text" id="userName" placeholder="이름을 입력하세요">
+            <select id="menuSelect"></select>
+            <button class="btn btn-submit" onclick="submitOrder()">주문 제출</button>
+        </div>
+
         <p id="status"></p>
     </div>
 
     <script>
-        function vote(item) {
-            const url = "https://script.google.com/macros/s/AKfycbx7GYZhYLsYWm-NXv9mecvl2TAEFxExWjURWBHXdmfpQz2h9kwGGQ5xi-uw9vWp9ZaL/exec";
-            document.getElementById('status').innerText = "전송 중...";
-            fetch(url, { method: "POST", body: JSON.stringify({ choice: item }) })
-            .then(() => {
-                document.getElementById('status').innerText = "투표 완료!";
-                document.querySelectorAll('button').forEach(b => b.disabled = true);
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxpbC3FNp0Xi1d9goBHT4n0s5BMfqCgzMkJmcm9wsxvlFxAN6PuBw0Ed4g_U4AUyAmAQg/exec"; // <-- 필수 수정!
+        let stateData = {};
+
+        async function init() {
+            try {
+                const res = await fetch(GAS_URL + "?type=get");
+                stateData = await res.json();
+                document.getElementById('loading').classList.add('hidden');
+
+                if (stateData.status === "VOTING") {
+                    showVoting();
+                } else if (stateData.status === "ORDERING") {
+                    showOrdering();
+                } else {
+                    document.getElementById('status').innerText = "투표가 아직 시작되지 않았습니다.";
+                }
+            } catch (e) {
+                document.getElementById('status').innerText = "서버 연결 오류";
+            }
+        }
+
+        function showVoting() {
+            document.getElementById('votingSection').classList.remove('hidden');
+            const resButtons = document.getElementById('resButtons');
+            stateData.restaurants.forEach(res => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-vote';
+                btn.innerText = res;
+                btn.onclick = () => sendVote(res);
+                resButtons.appendChild(btn);
+            });
+            startTimer(stateData.timeLeft);
+        }
+
+        function startTimer(seconds) {
+            const timerEl = document.getElementById('timer');
+            const interval = setInterval(() => {
+                const min = Math.floor(seconds / 60);
+                const sec = seconds % 60;
+                timerEl.innerText = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+                if (--seconds < 0) {
+                    clearInterval(interval);
+                    location.reload(); // 5분 지나면 자동 새로고침
+                }
+            }, 1000);
+        }
+
+        function showOrdering() {
+            document.getElementById('orderingSection').classList.remove('hidden');
+            document.getElementById('winnerInfo').innerText = `오늘의 식당: ${stateData.winner}`;
+            const menuSelect = document.getElementById('menuSelect');
+            stateData.menus.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.name;
+                opt.innerText = `${m.name} (${m.price.toLocaleString()}원)`;
+                opt.dataset.price = m.price;
+                menuSelect.appendChild(opt);
             });
         }
+
+        function sendVote(choice) {
+            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", choice: choice }) })
+            .then(() => {
+                alert(choice + " 투표 완료!");
+                document.querySelectorAll('.btn-vote').forEach(b => b.disabled = true);
+            });
+        }
+
+        function submitOrder() {
+            const name = document.getElementById('userName').value;
+            const menu = document.getElementById('menuSelect').value;
+            const price = document.getElementById('menuSelect').selectedOptions[0].dataset.price;
+            if(!name) return alert("이름을 입력하세요!");
+
+            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ 
+                type: "ORDER", userName: name, restaurant: stateData.winner, menu: menu, price: price 
+            }) }).then(() => {
+                alert("주문 완료!");
+                location.reload();
+            });
+        }
+
+        init();
     </script>
 </body>
 </html>
