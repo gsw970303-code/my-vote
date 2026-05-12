@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Express v2.4</title>
+    <title>Lunch Express v2.5</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; --disabled: #334155; }
-        body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--bg); color: white; margin: 0; display: flex; justify-content: center; min-height: 100vh; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; display: flex; justify-content: center; min-height: 100vh; }
         .container { width: 100%; max-width: 480px; padding: 20px; text-align: center; }
-        .card { background: var(--card); padding: 30px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); margin-bottom: 20px; border: 1px solid #475569; transition: 0.3s opacity; }
+        .card { background: var(--card); padding: 30px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); margin-bottom: 20px; border: 1px solid #475569; position: relative; }
         .timer { font-size: 64px; color: var(--primary); font-weight: 800; margin: 10px 0; font-variant-numeric: tabular-nums; }
         .grid-select { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
-        .select-item { background: #0f172a; padding: 18px; border-radius: 16px; cursor: pointer; border: 2px solid #334155; }
+        .select-item { background: #0f172a; padding: 18px; border-radius: 16px; cursor: pointer; border: 2px solid #334155; transition: 0.2s all; }
         .select-item.active { background: var(--primary); color: #0f172a; font-weight: bold; border-color: var(--primary); }
         .btn-main { width: 100%; padding: 20px; background: var(--primary); color: #0f172a; border: none; border-radius: 16px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 20px; }
         .btn-main:disabled { background: var(--disabled); color: #64748b; cursor: not-allowed; }
-        .btn-sub { background: none; border: 1px solid #475569; color: #94a3b8; padding: 12px; border-radius: 12px; cursor: pointer; margin-top: 20px; font-size: 14px; width: 60%; }
+        .btn-sub { background: none; border: 1px solid #475569; color: #94a3b8; padding: 12px; border-radius: 12px; cursor: pointer; margin-top: 20px; font-size: 14px; width: 65%; }
         .hidden { display: none; }
         .notice { color: var(--accent); font-size: 13px; margin-top: 15px; font-weight: 600; line-height: 1.6; }
         .form-disabled { pointer-events: none; opacity: 0.4; }
@@ -36,16 +36,15 @@
         <div id="waitSection" class="hidden">
             <div class="card">
                 <h2 style="color: var(--primary)">투표 완료! ✅</h2>
-                <p>동료들이 투표 중입니다.<br>잠시만 기다려주세요.</p>
+                <p>동료들이 투표 중입니다.<br>완료되면 자동으로 넘어갑니다.</p>
                 <div class="timer" id="waitTimer">--:--</div>
                 <button class="btn-sub" onclick="resetVote()">🔙 식당 다시 고르기</button>
             </div>
         </div>
 
         <div id="orderingSection" class="hidden">
-            <div class="card" id="orderCard">
+            <div class="card">
                 <h2 id="winnerTitle" style="color: var(--primary)">🏆 식당 확정!</h2>
-                
                 <div id="formContainer">
                     <h3 style="text-align:left;">1. 성함</h3>
                     <div class="grid-select" id="userGrid"></div>
@@ -53,7 +52,6 @@
                     <div class="grid-select" id="menuGrid"></div>
                     <button class="btn-main" id="submitBtn" onclick="submitOrder()">주문 제출하기</button>
                 </div>
-
                 <div id="orderedMsg" class="hidden">
                     <p style="color: var(--primary); font-weight: bold; font-size: 20px; margin-top: 20px;">주문이 완료되었습니다! 🍱</p>
                     <div class="notice">
@@ -67,7 +65,11 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwX0TgQWqwVVQ8R4e9wNhX3_n_FgyKbAVI_dH9wAOtxsW61Fqo-xDuGklqb7UIhGyzk/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxi9M1n3zZ4BgFRMwyLIK7j9Y6VoVmHqzaNsDSvKRUF-Ttz6Wa42Ag7losOw-IC6Qq2qA/exec";
+        if(!localStorage.getItem('deviceId')) {
+            localStorage.setItem('deviceId', 'dev_' + Math.random().toString(36).substr(2, 9));
+        }
+        const deviceId = localStorage.getItem('deviceId');
         let state = {};
         let selected = { res: null, user: null, menu: null, price: 0 };
         let countdown;
@@ -83,7 +85,7 @@
         function renderUI() {
             document.getElementById('loading').classList.add('hidden');
             if (state.status === "VOTING") {
-                if (localStorage.getItem('voted_2.4')) {
+                if (localStorage.getItem('voted_2.5')) {
                     showSection('waitSection');
                     startTimer('waitTimer', state.timeLeft);
                 } else {
@@ -100,28 +102,14 @@
                     renderGrid('userGrid', state.employees, (v) => selected.user = v);
                     renderGrid('menuGrid', state.menus, (obj) => { selected.menu = obj.name; selected.price = obj.price; }, true);
                 }
-                
-                // 주문 완료 상태 처리
-                if (localStorage.getItem('ordered_2.4')) {
-                    setFormDisabled(true);
-                }
+                if (localStorage.getItem('ordered_2.5')) setFormDisabled(true);
             }
         }
 
         function setFormDisabled(disabled) {
-            const container = document.getElementById('formContainer');
-            const submitBtn = document.getElementById('submitBtn');
-            const msg = document.getElementById('orderedMsg');
-            
-            if (disabled) {
-                container.classList.add('form-disabled');
-                submitBtn.disabled = true;
-                msg.classList.remove('hidden');
-            } else {
-                container.classList.remove('form-disabled');
-                submitBtn.disabled = false;
-                msg.classList.add('hidden');
-            }
+            document.getElementById('formContainer').classList.toggle('form-disabled', disabled);
+            document.getElementById('submitBtn').disabled = disabled;
+            document.getElementById('orderedMsg').classList.toggle('hidden', !disabled);
         }
 
         function showSection(id) {
@@ -160,13 +148,13 @@
 
         function sendVote() {
             if(!confirm(`'${selected.res}'에 투표하시겠습니까?`)) return;
-            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", choice: selected.res }) })
-            .then(() => { localStorage.setItem('voted_2.4', 'true'); updateState(); });
+            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) })
+            .then(() => { localStorage.setItem('voted_2.5', 'true'); updateState(); });
         }
 
         function resetVote() {
-            if(confirm("투표를 다시 하시겠습니까?")) {
-                localStorage.removeItem('voted_2.4');
+            if(confirm("식당 투표를 다시 하시겠습니까?")) {
+                localStorage.removeItem('voted_2.5');
                 location.reload();
             }
         }
@@ -176,15 +164,15 @@
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ 
                 type: "ORDER", userName: selected.user, restaurant: state.winner, menu: selected.menu, price: selected.price 
             }) }).then(() => { 
-                localStorage.setItem('ordered_2.4', 'true');
+                localStorage.setItem('ordered_2.5', 'true');
                 setFormDisabled(true);
                 alert("주문이 완료되었습니다!");
             });
         }
 
         function reOrder() {
-            if(confirm("메뉴를 변경하시겠습니까? 다시 제출 시 기존 주문은 수정됩니다.")) {
-                localStorage.removeItem('ordered_2.4');
+            if(confirm("메뉴를 변경하시겠습니까? 다시 제출 시 기존 주문이 수정됩니다.")) {
+                localStorage.removeItem('ordered_2.5');
                 setFormDisabled(false);
             }
         }
