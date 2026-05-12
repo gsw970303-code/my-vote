@@ -3,33 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Express</title>
+    <title>Lunch Express v2.2</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; }
-        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; display: flex; justify-content: center; min-height: 100vh; }
+        body { font-family: sans-serif; background: var(--bg); color: white; margin: 0; display: flex; justify-content: center; min-height: 100vh; }
         .container { width: 100%; max-width: 480px; padding: 20px; text-align: center; }
         .card { background: var(--card); padding: 30px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); margin-bottom: 20px; border: 1px solid #334155; }
         .timer { font-size: 64px; color: var(--primary); font-weight: 800; margin: 10px 0; }
         .status-badge { background: #334155; padding: 5px 15px; border-radius: 20px; font-size: 14px; margin-bottom: 20px; display: inline-block; }
-        
         .grid-select { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
-        .select-item { 
-            background: #0f172a; padding: 18px; border-radius: 16px; cursor: pointer; border: 2px solid #334155;
-            transition: 0.2s all; display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-        .select-item:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .select-item { background: #0f172a; padding: 18px; border-radius: 16px; cursor: pointer; border: 2px solid #334155; transition: 0.2s all; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .select-item.active { background: var(--primary); color: #0f172a; font-weight: bold; border-color: var(--primary); }
         .price { font-size: 13px; opacity: 0.7; margin-top: 4px; }
-
         .btn-main { width: 100%; padding: 20px; background: var(--primary); color: #0f172a; border: none; border-radius: 16px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 20px; }
         .hidden { display: none; }
-        #status-msg { margin-top: 20px; color: #64748b; font-size: 14px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div id="loading">✨ 점심 엔진 가동 중...</div>
-
+        <div id="loading">✨ 시스템 로딩 중...</div>
         <div id="votingSection" class="hidden">
             <div class="card">
                 <div class="status-badge" id="voteCount">참여 현황: 0 / 0</div>
@@ -38,7 +30,6 @@
                 <div class="grid-select" id="resGrid"></div>
             </div>
         </div>
-
         <div id="waitSection" class="hidden">
             <div class="card">
                 <h2 style="color: var(--primary)">투표 완료! ✅</h2>
@@ -46,28 +37,20 @@
                 <div class="timer" id="waitTimer">--:--</div>
             </div>
         </div>
-
         <div id="orderingSection" class="hidden">
             <div class="card">
                 <h2 id="winnerTitle" style="color: var(--primary)">🏆 식당 선정 완료!</h2>
-                <div style="margin-bottom: 30px; font-size: 18px;">본인 성함과 메뉴를 선택해 주세요.</div>
-                
                 <h3 style="text-align:left;">1. 성함</h3>
                 <div class="grid-select" id="userGrid"></div>
-
                 <h3 style="text-align:left; margin-top:30px;">2. 메뉴</h3>
                 <div class="grid-select" id="menuGrid"></div>
-
                 <button class="btn-main" onclick="submitOrder()">주문 제출하기</button>
             </div>
         </div>
-
-        <p id="status-msg"></p>
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbzsCI_MPsWHVHX18AxuUzm1HVlHV_tZVag3Hpu65EUaxXbJXyqu-sMLvnu_iu29OldcKQ/exec
-";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwuBgsuMn3WllCXf39DYnkYAnYVVXcyST-l1Z1uHkK_GqBI0jT9ArXfNThQp5i5aMIEbQ/exec";
         let state = {};
         let selected = { res: null, user: null, menu: null, price: 0 };
         let pollTimer;
@@ -82,7 +65,6 @@
 
         function renderUI() {
             document.getElementById('loading').classList.add('hidden');
-            
             if (state.status === "VOTING") {
                 if (localStorage.getItem('voted_2.2')) {
                     showSection('waitSection');
@@ -107,9 +89,7 @@
         }
 
         function showSection(id) {
-            ['votingSection', 'waitSection', 'orderingSection'].forEach(s => {
-                document.getElementById(s).classList.add('hidden');
-            });
+            ['votingSection', 'waitSection', 'orderingSection'].forEach(s => document.getElementById(s).classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
         }
 
@@ -147,10 +127,9 @@
             if(!selected.user || !selected.menu) return alert("성함과 메뉴를 선택해주세요!");
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ 
                 type: "ORDER", userName: selected.user, restaurant: state.winner, menu: selected.menu, price: selected.price 
-            }) }).then(() => { alert("주문 완료! 점심 맛있게 드세요."); location.reload(); });
+            }) }).then(() => { alert("주문 완료!"); location.reload(); });
         }
 
-        // 3초마다 서버 상태 확인 (실시간 전환용)
         pollTimer = setInterval(updateState, 3000);
         updateState();
     </script>
