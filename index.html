@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.1</title>
+    <title>Lunch Pro v3.1 (Debug)</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -23,18 +23,26 @@
         .lucky-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 8px 15px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; cursor: pointer; }
         .hidden { display: none; }
         .form-disabled { pointer-events: none; opacity: 0.3; }
+        #errorMessage { color: var(--accent); background: rgba(244, 63, 94, 0.1); padding: 10px; border-radius: 8px; margin-top: 20px; font-size: 14px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div id="loading">⚡ 동기화 중...</div>
+        <div id="loading">⚡ 데이터 동기화 중...</div>
+        <div id="errorMessage" class="hidden"></div>
 
-        <!-- 관리자 섹션 -->
         <div id="adminSection" class="hidden" style="background:#334155; padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed var(--primary);">
-            <button class="btn-main" onclick="startSystem()">점심 투표 시작</button>
+            <h3 style="margin:0 0 10px 0; font-size:16px;">🛠 관리자 메뉴</h3>
+            <button class="btn-main" onclick="startSystem()">점심 투표 시작 (데이터 초기화)</button>
         </div>
 
-        <!-- 1. 투표 화면 -->
+        <div id="waitingSection" class="hidden">
+            <div class="card">
+                <h2>😴 대기 중</h2>
+                <p style="color:#94a3b8;">관리자가 아직 투표를 시작하지 않았습니다.<br>잠시만 기다려 주세요!</p>
+            </div>
+        </div>
+
         <div id="votingSection" class="hidden">
             <div class="card">
                 <h2>🍴 식당 투표</h2>
@@ -49,7 +57,6 @@
             </div>
         </div>
 
-        <!-- 2. 주문 화면 -->
         <div id="orderingSection" class="hidden">
             <div class="card">
                 <h2 id="winnerTitle" style="color:var(--primary)">🏆 오늘의 식당</h2>
@@ -77,7 +84,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbzCq2ky_oR_LL5Cd9fR8R-M-lXPp0p8_ygsSpglBwh_KKMQFGo9t4VIVlH5XBUxwixqXA/exec"; // <--- 여기에 URL 꼭 넣어주세요!
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzCq2ky_oR_LL5Cd9fR8R-M-lXPp0p8_ygsSpglBwh_KKMQFGo9t4VIVlH5XBUxwixqXA/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -89,16 +96,28 @@
         async function updateState() {
             try {
                 const res = await fetch(GAS_URL + "?type=get");
+                if (!res.ok) throw new Error("서버 응답 오류 (HTTP " + res.status + ")");
                 state = await res.json();
+                document.getElementById('errorMessage').classList.add('hidden');
                 renderUI();
-            } catch (e) {}
+            } catch (e) {
+                console.error("에러:", e);
+                const errDiv = document.getElementById('errorMessage');
+                errDiv.innerText = "❌ 연결 에러: " + e.message + "\n(구글 앱스 스크립트 '새 배포'를 다시 해보세요!)";
+                errDiv.classList.remove('hidden');
+            }
         }
 
         function renderUI() {
             document.getElementById('loading').classList.add('hidden');
             if(isAdmin) document.getElementById('adminSection').classList.remove('hidden');
             
-            if(state.status === "VOTING") {
+            // 모든 섹션 일단 숨기기
+            ['waitingSection', 'votingSection', 'orderingSection'].forEach(s => document.getElementById(s).classList.add('hidden'));
+
+            if(state.status === "WAITING") {
+                showSection('waitingSection');
+            } else if(state.status === "VOTING") {
                 showSection('votingSection');
                 if(!document.getElementById('resGrid').children.length) 
                     renderGrid('resGrid', state.restaurants, (v) => { selected.res = v; sendVote(); });
@@ -121,27 +140,8 @@
             }
         }
 
-        function renderStats() {
-            const list = document.getElementById('statsList');
-            list.innerHTML = '';
-            const sorted = Object.entries(state.menuStats || {}).sort((a,b) => b[1] - a[1]).slice(0, 3);
-            const max = sorted.length ? Math.max(...sorted.map(s => s[1])) : 1;
-            
-            sorted.forEach(([name, count]) => {
-                const width = (count / max) * 100;
-                list.innerHTML += `
-                    <div class="stat-row">
-                        <div class="stat-info"><span>${name}</span><span>${count}명</span></div>
-                        <div class="progress-container"><div class="progress-bar" style="width:${width}%"></div></div>
-                    </div>`;
-            });
-        }
-
-        function randomMenu() {
-            const items = document.querySelectorAll('#menuGrid .item');
-            const randIdx = Math.floor(Math.random() * items.length);
-            items[randIdx].click();
-            alert(`오늘의 추천 메뉴는 [${state.menus[randIdx].name}] 입니다! ✨`);
+        function showSection(id) {
+            document.getElementById(id).classList.remove('hidden');
         }
 
         function startLocalTimer(endTime) {
@@ -156,10 +156,19 @@
 
         function startSystem() {
             if(!confirm("모든 기록을 초기화하고 투표를 시작하시겠습니까?")) return;
-            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_START" }) }).then(() => {
-                alert("투표가 시작되었습니다!");
-                location.href = location.pathname;
-            });
+            const loadingMsg = document.getElementById('loading');
+            loadingMsg.innerText = "⏳ 시스템 초기화 중...";
+            loadingMsg.classList.remove('hidden');
+
+            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_START" }) })
+            .then(res => res.json())
+            .then(data => {
+                if(data.result === "success") {
+                    alert("투표가 시작되었습니다!");
+                    location.href = location.pathname;
+                }
+            })
+            .catch(e => alert("시작 오류: " + e.message));
         }
 
         function renderGrid(containerId, data, callback, isMenu = false) {
@@ -179,7 +188,8 @@
         }
 
         function sendVote() {
-            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) });
+            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) })
+            .then(() => { localStorage.setItem('voted_3.1', 'true'); });
         }
 
         function submitOrder() {
@@ -196,9 +206,16 @@
             document.getElementById('formContainer').classList.toggle('hidden', disabled);
             document.getElementById('orderedMsg').classList.toggle('hidden', !disabled);
         }
-        function showSection(id) {
-            ['votingSection', 'orderingSection'].forEach(s => document.getElementById(s).classList.add('hidden'));
-            document.getElementById(id).classList.remove('hidden');
+
+        function renderStats() {
+            const list = document.getElementById('statsList');
+            list.innerHTML = '';
+            const sorted = Object.entries(state.menuStats || {}).sort((a,b) => b[1] - a[1]).slice(0, 3);
+            const max = sorted.length ? Math.max(...sorted.map(s => s[1])) : 1;
+            sorted.forEach(([name, count]) => {
+                const width = (count / max) * 100;
+                list.innerHTML += `<div class="stat-row"><div class="stat-info"><span>${name}</span><span>${count}명</span></div><div class="progress-container"><div class="progress-bar" style="width:${width}%"></div></div></div>`;
+            });
         }
 
         setInterval(updateState, 5000);
