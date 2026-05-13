@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.1 (Debug)</title>
+    <title>Lunch Pro v3.5</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -17,12 +17,22 @@
         .btn-main { width: 100%; padding: 20px; background: var(--primary); color: #0f172a; border: none; border-radius: 16px; font-size: 18px; font-weight: bold; cursor: pointer; }
         .progress-container { width: 100%; background: #334155; height: 8px; border-radius: 4px; margin-top: 10px; overflow: hidden; }
         .progress-bar { height: 100%; background: var(--primary); transition: 0.3s; width: 0%; }
-        .stats-box { margin-top: 25px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 16px; text-align: left; }
-        .stat-row { margin-bottom: 12px; }
-        .stat-info { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px; }
-        .lucky-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 8px 15px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; cursor: pointer; }
+        .lucky-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 8px 15px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; cursor: pointer; width: 100%; }
         .hidden { display: none; }
-        .form-disabled { pointer-events: none; opacity: 0.3; }
+        
+        /* 슬롯머신 효과용 애니메이션 */
+        @keyframes slot-blink {
+            0% { background: #0f172a; border-color: #334155; }
+            50% { background: var(--primary); border-color: var(--primary); color: #0f172a; }
+            100% { background: #0f172a; border-color: #334155; }
+        }
+        .slot-rolling { animation: slot-blink 0.1s infinite; }
+
+        /* 어드민 대시보드 스타일 */
+        .admin-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; background: #0f172a; border-radius: 12px; overflow: hidden; }
+        .admin-table th, .admin-table td { padding: 12px; border-bottom: 1px solid #334155; text-align: left; }
+        .admin-table th { background: #334155; color: var(--primary); }
+        .summary-card { background: rgba(0, 255, 136, 0.1); border: 1px solid var(--primary); padding: 15px; border-radius: 16px; margin-top: 15px; text-align: left; }
         #errorMessage { color: var(--accent); background: rgba(244, 63, 94, 0.1); padding: 10px; border-radius: 8px; margin-top: 20px; font-size: 14px; }
     </style>
 </head>
@@ -31,11 +41,13 @@
         <div id="loading">⚡ 데이터 동기화 중...</div>
         <div id="errorMessage" class="hidden"></div>
 
+        <!-- 관리자 섹션 -->
         <div id="adminSection" class="hidden" style="background:#334155; padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed var(--primary);">
             <h3 style="margin:0 0 10px 0; font-size:16px;">🛠 관리자 메뉴</h3>
             <button class="btn-main" onclick="startSystem()">점심 투표 시작 (데이터 초기화)</button>
         </div>
 
+        <!-- 0. 대기 화면 -->
         <div id="waitingSection" class="hidden">
             <div class="card">
                 <h2>😴 대기 중</h2>
@@ -43,48 +55,51 @@
             </div>
         </div>
 
+        <!-- 1. 투표 화면 -->
         <div id="votingSection" class="hidden">
             <div class="card">
                 <h2>🍴 식당 투표</h2>
                 <div class="timer" id="voteTimer">00:00</div>
-                <div class="guide-text">
-                    식당 변경은 시간 내 가능하며 마지막 선택이 반영됩니다.<br>
-                    <b>전원 투표 시 즉시 메뉴 선택으로 넘어갑니다.</b>
-                </div>
+                <div class="guide-text">식당 변경은 시간 내 가능하며 마지막 선택이 반영됩니다.</div>
                 <div class="progress-container"><div id="voteProgress" class="progress-bar"></div></div>
                 <p id="voteCountText" style="font-size:12px; color:var(--primary); margin-top:5px;"></p>
                 <div class="grid" id="resGrid"></div>
             </div>
         </div>
 
+        <!-- 2. 주문 화면 -->
         <div id="orderingSection" class="hidden">
             <div class="card">
                 <h2 id="winnerTitle" style="color:var(--primary)">🏆 오늘의 식당</h2>
                 <div id="formContainer">
                     <div class="grid" id="userGrid"></div>
                     <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
-                    <button class="lucky-btn" onclick="randomMenu()">🎲 결정하기 힘들다면? 랜덤 추천!</button>
+                    <button id="randomBtn" class="lucky-btn" onclick="randomMenuSlot()">🎲 메뉴 결정 장애? 슬롯머신 돌리기!</button>
                     <div class="grid" id="menuGrid"></div>
                     <button class="btn-main" id="submitBtn" onclick="submitOrder()" style="margin-top:20px;">주문 제출하기</button>
                 </div>
                 <div id="orderedMsg" class="hidden">
                     <div style="background:rgba(0,255,136,0.1); padding:15px; border-radius:12px; margin-bottom:15px;">
                         <b style="color:var(--primary)">주문 완료!</b><br>
-                        <span style="font-size:14px;">메뉴 변경 시 변경 후 <b>구수완 사원</b>에게 메신저 부탁드립니다.</span>
+                        <span style="font-size:14px;">메뉴 변경 시 <b>구수완 사원</b>에게 메신저 부탁드립니다.</span>
                     </div>
                     <button onclick="reOrder()" style="color:#94a3b8; background:none; border:none; text-decoration:underline; cursor:pointer;">메뉴 다시 고르기</button>
-                    
-                    <div class="stats-box">
-                        <div style="font-weight:bold; margin-bottom:15px; color:var(--primary);">🔥 실시간 인기 메뉴 TOP 3</div>
-                        <div id="statsList"></div>
-                    </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- 3. 관리자 실시간 대시보드 -->
+        <div id="adminDashboard" class="hidden">
+            <div class="card" style="border: 1px solid var(--primary); padding: 20px;">
+                <h3 style="color:var(--primary); margin-top:0;">📊 실시간 주문 현황 (어드민 전용)</h3>
+                <div id="adminOrderList"></div>
+                <div id="adminSummary" class="summary-card"></div>
             </div>
         </div>
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbzCq2ky_oR_LL5Cd9fR8R-M-lXPp0p8_ygsSpglBwh_KKMQFGo9t4VIVlH5XBUxwixqXA/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbyozTPdqZKbSgwC6s-w1iZ6O_8JcDO6FfNxxVXcT32oe_rXe5Sr7n0TtWH5cQQq195AQg/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -96,14 +111,13 @@
         async function updateState() {
             try {
                 const res = await fetch(GAS_URL + "?type=get");
-                if (!res.ok) throw new Error("서버 응답 오류 (HTTP " + res.status + ")");
                 state = await res.json();
                 document.getElementById('errorMessage').classList.add('hidden');
                 renderUI();
+                if(isAdmin && state.status === "ORDERING") renderAdminDashboard();
             } catch (e) {
-                console.error("에러:", e);
                 const errDiv = document.getElementById('errorMessage');
-                errDiv.innerText = "❌ 연결 에러: " + e.message + "\n(구글 앱스 스크립트 '새 배포'를 다시 해보세요!)";
+                errDiv.innerText = "❌ 연결 에러: " + e.message;
                 errDiv.classList.remove('hidden');
             }
         }
@@ -111,14 +125,12 @@
         function renderUI() {
             document.getElementById('loading').classList.add('hidden');
             if(isAdmin) document.getElementById('adminSection').classList.remove('hidden');
-            
-            // 모든 섹션 일단 숨기기
             ['waitingSection', 'votingSection', 'orderingSection'].forEach(s => document.getElementById(s).classList.add('hidden'));
 
             if(state.status === "WAITING") {
-                showSection('waitingSection');
+                document.getElementById('waitingSection').classList.remove('hidden');
             } else if(state.status === "VOTING") {
-                showSection('votingSection');
+                document.getElementById('votingSection').classList.remove('hidden');
                 if(!document.getElementById('resGrid').children.length) 
                     renderGrid('resGrid', state.restaurants, (v) => { selected.res = v; sendVote(); });
                 
@@ -126,9 +138,8 @@
                 const percent = (state.voteCount / state.totalCount) * 100;
                 document.getElementById('voteProgress').style.width = percent + '%';
                 document.getElementById('voteCountText').innerText = `참여 현황: ${state.voteCount} / ${state.totalCount}`;
-                
             } else if(state.status === "ORDERING") {
-                showSection('orderingSection');
+                document.getElementById('orderingSection').classList.remove('hidden');
                 document.getElementById('winnerTitle').innerText = `🏆 ${state.winner}`;
                 if(!document.getElementById('userGrid').children.length) {
                     renderGrid('userGrid', state.employees, (v) => selected.user = v);
@@ -136,39 +147,7 @@
                 }
                 const isOrdered = localStorage.getItem('ordered_3.1');
                 setFormDisabled(!!isOrdered);
-                if(isOrdered) renderStats();
             }
-        }
-
-        function showSection(id) {
-            document.getElementById(id).classList.remove('hidden');
-        }
-
-        function startLocalTimer(endTime) {
-            if(timerInterval) clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                const diff = endTime - new Date().getTime();
-                if(diff <= 0) { clearInterval(timerInterval); updateState(); return; }
-                const m = Math.floor(diff / 60000), s = Math.floor((diff % 60000) / 1000);
-                document.getElementById('voteTimer').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-            }, 200);
-        }
-
-        function startSystem() {
-            if(!confirm("모든 기록을 초기화하고 투표를 시작하시겠습니까?")) return;
-            const loadingMsg = document.getElementById('loading');
-            loadingMsg.innerText = "⏳ 시스템 초기화 중...";
-            loadingMsg.classList.remove('hidden');
-
-            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_START" }) })
-            .then(res => res.json())
-            .then(data => {
-                if(data.result === "success") {
-                    alert("투표가 시작되었습니다!");
-                    location.href = location.pathname;
-                }
-            })
-            .catch(e => alert("시작 오류: " + e.message));
         }
 
         function renderGrid(containerId, data, callback, isMenu = false) {
@@ -187,11 +166,71 @@
             });
         }
 
-        function sendVote() {
-            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) })
-            .then(() => { localStorage.setItem('voted_3.1', 'true'); });
+        function randomMenuSlot() {
+            const items = document.querySelectorAll('#menuGrid .item');
+            if(!items.length) return;
+            const btn = document.getElementById('randomBtn');
+            btn.disabled = true;
+            btn.innerText = "🎰 메뉴 고르는 중...";
+
+            let count = 0;
+            const maxRolls = 15;
+            const interval = setInterval(() => {
+                items.forEach(el => el.classList.remove('slot-rolling'));
+                const rand = Math.floor(Math.random() * items.length);
+                items[rand].classList.add('slot-rolling');
+                count++;
+                if(count > maxRolls) {
+                    clearInterval(interval);
+                    items.forEach(el => el.classList.remove('slot-rolling'));
+                    const finalIdx = Math.floor(Math.random() * items.length);
+                    items[finalIdx].click();
+                    btn.disabled = false;
+                    btn.innerText = "🎲 메뉴 다시 돌리기";
+                }
+            }, 100);
         }
 
+        function renderAdminDashboard() {
+            const dash = document.getElementById('adminDashboard');
+            dash.classList.remove('hidden');
+            if(!state.orderData) return;
+
+            let listHtml = `<table class="admin-table"><tr><th>성함</th><th>메뉴</th><th>가격</th></tr>`;
+            state.orderData.forEach(order => {
+                listHtml += `<tr><td>${order.name}</td><td>${order.menu}</td><td>${Number(order.price).toLocaleString()}원</td></tr>`;
+            });
+            listHtml += `</table>`;
+            document.getElementById('adminOrderList').innerHTML = listHtml;
+
+            let summaryHtml = `<strong>📋 메뉴별 합계</strong><br>`;
+            for (const [menu, count] of Object.entries(state.menuStats || {})) {
+                summaryHtml += `- ${menu}: ${count}명<br>`;
+            }
+            summaryHtml += `<hr style="border-color:var(--primary); margin:10px 0;">`;
+            summaryHtml += `<strong>💰 총 인원: ${state.orderData.length}명 / 합계: ${Number(state.totalPrice).toLocaleString()}원</strong>`;
+            document.getElementById('adminSummary').innerHTML = summaryHtml;
+        }
+
+        function startLocalTimer(endTime) {
+            if(timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const diff = endTime - new Date().getTime();
+                if(diff <= 0) { clearInterval(timerInterval); updateState(); return; }
+                const m = Math.floor(diff / 60000), s = Math.floor((diff % 60000) / 1000);
+                document.getElementById('voteTimer').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            }, 200);
+        }
+
+        function startSystem() {
+            if(!confirm("모든 기록을 초기화하고 투표를 시작하시겠습니까?")) return;
+            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_START" }) }).then(() => {
+                alert("투표가 시작되었습니다!");
+                location.href = location.pathname + (isAdmin ? "?admin=true" : "");
+            });
+        }
+
+        function sendVote() { fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) }); }
         function submitOrder() {
             if(!selected.user || !selected.menu) return alert("이름과 메뉴를 선택해주세요!");
             localStorage.setItem('ordered_3.1', 'true');
@@ -200,22 +239,10 @@
                 type: "ORDER", userName: selected.user, restaurant: state.winner, menu: selected.menu, price: selected.price 
             }) }).then(updateState);
         }
-
         function reOrder() { localStorage.removeItem('ordered_3.1'); setFormDisabled(false); }
         function setFormDisabled(disabled) {
             document.getElementById('formContainer').classList.toggle('hidden', disabled);
             document.getElementById('orderedMsg').classList.toggle('hidden', !disabled);
-        }
-
-        function renderStats() {
-            const list = document.getElementById('statsList');
-            list.innerHTML = '';
-            const sorted = Object.entries(state.menuStats || {}).sort((a,b) => b[1] - a[1]).slice(0, 3);
-            const max = sorted.length ? Math.max(...sorted.map(s => s[1])) : 1;
-            sorted.forEach(([name, count]) => {
-                const width = (count / max) * 100;
-                list.innerHTML += `<div class="stat-row"><div class="stat-info"><span>${name}</span><span>${count}명</span></div><div class="progress-container"><div class="progress-bar" style="width:${width}%"></div></div></div>`;
-            });
         }
 
         setInterval(updateState, 5000);
