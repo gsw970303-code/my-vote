@@ -3,72 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Express v2.7</title>
+    <title>Lunch Pro v3.0</title>
     <style>
-        :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; --disabled: #334155; }
-        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; overflow-x: hidden; }
-        .container { width: 100%; max-width: 480px; margin: 0 auto; padding: 20px; text-align: center; }
-        .card { background: var(--card); padding: 30px; border-radius: 24px; border: 1px solid #475569; }
+        :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
+        body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
+        .container { max-width: 480px; margin: 0 auto; padding: 20px; }
+        .card { background: var(--card); padding: 30px; border-radius: 24px; border: 1px solid #475569; margin-bottom: 20px; }
         .timer { font-size: 64px; color: var(--primary); font-weight: 800; margin: 10px 0; font-variant-numeric: tabular-nums; }
-        .grid-select { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
-        .select-item { background: #0f172a; padding: 18px; border-radius: 16px; border: 2px solid #334155; cursor: pointer; transition: 0.1s; }
-        .select-item.active { background: var(--primary); color: #0f172a; font-weight: bold; border-color: var(--primary); transform: scale(0.98); }
-        .btn-main { width: 100%; padding: 20px; background: var(--primary); color: #0f172a; border: none; border-radius: 16px; font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 20px; }
-        .btn-main:disabled { background: var(--disabled); color: #64748b; }
-        .stats-box { margin-top: 25px; padding: 20px; background: rgba(0,0,0,0.2); border-radius: 16px; text-align: left; }
-        .stat-line { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
-        .stat-bar { height: 6px; background: var(--primary); border-radius: 3px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+        .item { background: #0f172a; padding: 18px; border-radius: 16px; border: 2px solid #334155; cursor: pointer; transition: 0.1s; }
+        .item.active { background: var(--primary); color: #0f172a; font-weight: bold; border-color: var(--primary); }
+        .btn-main { width: 100%; padding: 20px; background: var(--primary); color: #0f172a; border: none; border-radius: 16px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .admin-box { background: #334155; padding: 15px; border-radius: 12px; margin-top: 50px; border: 1px dashed var(--primary); }
         .hidden { display: none; }
-        .form-disabled { pointer-events: none; opacity: 0.3; filter: grayscale(1); }
+        .form-disabled { pointer-events: none; opacity: 0.3; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div id="loading" style="margin-top:100px;">✨ 데이터 동기화 중...</div>
+        <div id="loading">⚡ 시스템 연결 중...</div>
 
+        <!-- 관리자 섹션 -->
+        <div id="adminSection" class="hidden admin-box">
+            <h3 style="margin-top:0">🛠 관리자 모드</h3>
+            <button class="btn-main" onclick="startSystem()">점심 시스템 시작 (데이터 초기화)</button>
+        </div>
+
+        <!-- 투표 화면 -->
         <div id="votingSection" class="hidden">
             <div class="card">
                 <h2>🍴 식당 투표</h2>
                 <div class="timer" id="voteTimer">00:00</div>
-                <div class="grid-select" id="resGrid"></div>
+                <div class="grid" id="resGrid"></div>
             </div>
         </div>
 
-        <div id="waitSection" class="hidden">
-            <div class="card">
-                <h2 style="color: var(--primary)">투표 완료! ✅</h2>
-                <p>동료들의 선택을 기다리는 중...</p>
-                <div class="timer" id="waitTimer">00:00</div>
-                <button onclick="reVote()" style="background:none; border:none; color:#94a3b8; text-decoration:underline; cursor:pointer; margin-top:20px;">식당 다시 고르기</button>
-            </div>
-        </div>
-
+        <!-- 주문 화면 -->
         <div id="orderingSection" class="hidden">
             <div class="card">
-                <h2 id="winnerTitle" style="color: var(--primary)">🎯 오늘의 식당</h2>
+                <h2 id="winnerTitle" style="color:var(--primary)">🏆 오늘의 식당</h2>
                 <div id="formContainer">
-                    <div class="grid-select" id="userGrid"></div>
-                    <div class="grid-select" id="menuGrid"></div>
-                    <button class="btn-main" id="submitBtn" onclick="submitOrder()">주문 제출하기</button>
+                    <div class="grid" id="userGrid"></div>
+                    <div class="grid" id="menuGrid"></div>
+                    <button class="btn-main" id="submitBtn" onclick="submitOrder()" style="margin-top:20px;">주문 제출하기</button>
                 </div>
                 <div id="orderedMsg" class="hidden">
-                    <div style="color: var(--primary); font-weight: bold; margin-bottom: 10px;">주문 완료! 🍱</div>
-                    <button onclick="reOrder()" style="background:none; border:none; color:#94a3b8; text-decoration:underline; cursor:pointer;">메뉴 다시 고르기</button>
-                    <div class="stats-box">
-                        <div style="font-weight:bold; margin-bottom:15px; color:var(--primary);">🔥 실시간 메뉴 현황</div>
-                        <div id="statsList"></div>
-                    </div>
+                    <p>주문 완료! 메뉴 변경 시 아래 버튼을 누르세요.</p>
+                    <button onclick="reOrder()" style="color:#94a3b8; background:none; border:none; text-decoration:underline; cursor:pointer;">메뉴 다시 고르기</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbzpnXjA_Arp2uezC3XUdT-59Xc7Xj48-zXUDcN_sSLBY3-aCSu4vUztzt857t4rHoTOKw/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbw9RfMmEqLauQESA77hawOh-0yIJfyzBUkgTPya5PLK5Asa-eMxFsawjd48-GC78a65vw/exec";
+        const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
+        
         let state = {};
         let selected = { res: null, user: null, menu: null, price: 0 };
+        let timerInterval;
 
         async function updateState() {
             try {
@@ -80,57 +75,50 @@
 
         function renderUI() {
             document.getElementById('loading').classList.add('hidden');
-            if (state.status === "VOTING") {
-                updateTimer('voteTimer', state.timeLeft);
-                updateTimer('waitTimer', state.timeLeft);
-                if (localStorage.getItem('voted_2.7')) {
-                    showSection('waitSection');
-                } else {
-                    showSection('votingSection');
-                    if (!document.getElementById('resGrid').children.length) 
-                        renderGrid('resGrid', state.restaurants, (v) => { selected.res = v; sendVote(); });
-                }
-            } else if (state.status === "ORDERING") {
+            if(isAdmin) document.getElementById('adminSection').classList.remove('hidden');
+            
+            if(state.status === "WAITING") {
+                document.getElementById('loading').innerText = "😴 투표 시작을 기다리는 중입니다...";
+                document.getElementById('loading').classList.remove('hidden');
+            } else if(state.status === "VOTING") {
+                showSection('votingSection');
+                if(!document.getElementById('resGrid').children.length) 
+                    renderGrid('resGrid', state.restaurants, (v) => { selected.res = v; sendVote(); });
+                startLocalTimer(state.endTime);
+            } else if(state.status === "ORDERING") {
                 showSection('orderingSection');
                 document.getElementById('winnerTitle').innerText = `🏆 ${state.winner}`;
-                if (!document.getElementById('userGrid').children.length) {
+                if(!document.getElementById('userGrid').children.length) {
                     renderGrid('userGrid', state.employees, (v) => selected.user = v);
                     renderGrid('menuGrid', state.menus, (obj) => { selected.menu = obj.name; selected.price = obj.price; }, true);
                 }
-                const isOrdered = localStorage.getItem('ordered_2.7');
+                const isOrdered = localStorage.getItem('ordered_3.0');
                 setFormDisabled(!!isOrdered);
-                if (isOrdered) renderStats();
             }
         }
 
-        function renderStats() {
-            const list = document.getElementById('statsList');
-            list.innerHTML = '';
-            const sorted = Object.entries(state.menuStats || {}).sort((a,b) => b[1] - a[1]);
-            const max = Math.max(...Object.values(state.menuStats || {}), 1);
-            sorted.slice(0, 3).forEach(([name, count]) => {
-                const width = (count / max) * 100;
-                list.innerHTML += `<div style="margin-bottom:12px;"><div class="stat-line"><span>${name}</span><span>${count}명</span></div><div style="width:100%; background:#334155; height:6px; border-radius:3px;"><div class="stat-bar" style="width:${width}%"></div></div></div>`;
+        function startLocalTimer(endTime) {
+            if(timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const now = new Date().getTime();
+                const diff = endTime - now;
+                if(diff <= 0) {
+                    clearInterval(timerInterval);
+                    updateState();
+                    return;
+                }
+                const m = Math.floor(diff / 60000);
+                const s = Math.floor((diff % 60000) / 1000);
+                document.getElementById('voteTimer').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            }, 200); // 0.2초마다 업데이트하여 부드러움 유지
+        }
+
+        function startSystem() {
+            if(!confirm("모든 데이터를 초기화하고 투표를 시작하시겠습니까?")) return;
+            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_START" }) }).then(() => {
+                alert("시스템이 시작되었습니다!");
+                location.href = location.pathname; // 관리자 모드 해제 후 사용자 모드로 전환
             });
-        }
-
-        function setFormDisabled(disabled) {
-            document.getElementById('formContainer').classList.toggle('form-disabled', disabled);
-            document.getElementById('submitBtn').disabled = disabled;
-            document.getElementById('orderedMsg').classList.toggle('hidden', !disabled);
-        }
-
-        function showSection(id) {
-            ['votingSection', 'waitSection', 'orderingSection'].forEach(s => document.getElementById(s).classList.add('hidden'));
-            document.getElementById(id).classList.remove('hidden');
-        }
-
-        function updateTimer(id, seconds) {
-            const el = document.getElementById(id);
-            if(!el) return;
-            const m = Math.floor(seconds / 60);
-            const s = seconds % 60;
-            el.innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
         }
 
         function renderGrid(containerId, data, callback, isMenu = false) {
@@ -138,10 +126,10 @@
             container.innerHTML = '';
             data.forEach(item => {
                 const div = document.createElement('div');
-                div.className = 'select-item';
+                div.className = 'item';
                 div.innerText = isMenu ? `${item.name}\n${item.price.toLocaleString()}원` : item;
                 div.onclick = () => {
-                    container.querySelectorAll('.select-item').forEach(el => el.classList.remove('active'));
+                    container.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
                     div.classList.add('active');
                     callback(item);
                 };
@@ -150,32 +138,31 @@
         }
 
         function sendVote() {
-            localStorage.setItem('voted_2.7', 'true');
-            showSection('waitSection');
+            localStorage.setItem('voted_3.0', 'true');
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) });
-        }
-
-        function reVote() {
-            localStorage.removeItem('voted_2.7');
-            document.getElementById('resGrid').innerHTML = '';
-            updateState();
+            alert("투표 완료! 시간이 끝나면 메뉴 선택으로 넘어갑니다.");
         }
 
         function submitOrder() {
             if(!selected.user || !selected.menu) return alert("성함과 메뉴를 선택해주세요!");
-            localStorage.setItem('ordered_2.7', 'true');
+            localStorage.setItem('ordered_3.0', 'true');
             setFormDisabled(true);
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ 
                 type: "ORDER", userName: selected.user, restaurant: state.winner, menu: selected.menu, price: selected.price 
             }) }).then(updateState);
         }
 
-        function reOrder() {
-            localStorage.removeItem('ordered_2.7');
-            setFormDisabled(false);
+        function reOrder() { localStorage.removeItem('ordered_3.0'); setFormDisabled(false); }
+        function setFormDisabled(disabled) {
+            document.getElementById('formContainer').classList.toggle('form-disabled', disabled);
+            document.getElementById('orderedMsg').classList.toggle('hidden', !disabled);
+        }
+        function showSection(id) {
+            ['votingSection', 'orderingSection'].forEach(s => document.getElementById(s).classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
         }
 
-        setInterval(updateState, 3000);
+        setInterval(updateState, 5000);
         updateState();
     </script>
 </body>
