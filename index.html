@@ -3,60 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.0</title>
+    <title>Lunch Pro v3.1</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
         .container { max-width: 480px; margin: 0 auto; padding: 20px; }
-        .card { background: var(--card); padding: 30px; border-radius: 24px; border: 1px solid #475569; margin-bottom: 20px; }
+        .card { background: var(--card); padding: 30px; border-radius: 24px; border: 1px solid #475569; margin-bottom: 20px; position: relative; }
         .timer { font-size: 64px; color: var(--primary); font-weight: 800; margin: 10px 0; font-variant-numeric: tabular-nums; }
+        .guide-text { font-size: 13px; color: #94a3b8; line-height: 1.5; margin-bottom: 15px; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
-        .item { background: #0f172a; padding: 18px; border-radius: 16px; border: 2px solid #334155; cursor: pointer; transition: 0.1s; }
+        .item { background: #0f172a; padding: 18px; border-radius: 16px; border: 2px solid #334155; cursor: pointer; transition: 0.1s; position: relative; }
         .item.active { background: var(--primary); color: #0f172a; font-weight: bold; border-color: var(--primary); }
         .btn-main { width: 100%; padding: 20px; background: var(--primary); color: #0f172a; border: none; border-radius: 16px; font-size: 18px; font-weight: bold; cursor: pointer; }
-        .admin-box { background: #334155; padding: 15px; border-radius: 12px; margin-top: 50px; border: 1px dashed var(--primary); }
+        .progress-container { width: 100%; background: #334155; height: 8px; border-radius: 4px; margin-top: 10px; overflow: hidden; }
+        .progress-bar { height: 100%; background: var(--primary); transition: 0.3s; width: 0%; }
+        .stats-box { margin-top: 25px; padding: 20px; background: rgba(0,0,0,0.3); border-radius: 16px; text-align: left; }
+        .stat-row { margin-bottom: 12px; }
+        .stat-info { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px; }
+        .lucky-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 8px 15px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; cursor: pointer; }
         .hidden { display: none; }
         .form-disabled { pointer-events: none; opacity: 0.3; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div id="loading">⚡ 시스템 연결 중...</div>
+        <div id="loading">⚡ 동기화 중...</div>
 
         <!-- 관리자 섹션 -->
-        <div id="adminSection" class="hidden admin-box">
-            <h3 style="margin-top:0">🛠 관리자 모드</h3>
-            <button class="btn-main" onclick="startSystem()">점심 시스템 시작 (데이터 초기화)</button>
+        <div id="adminSection" class="hidden" style="background:#334155; padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed var(--primary);">
+            <button class="btn-main" onclick="startSystem()">점심 투표 시작</button>
         </div>
 
-        <!-- 투표 화면 -->
+        <!-- 1. 투표 화면 -->
         <div id="votingSection" class="hidden">
             <div class="card">
                 <h2>🍴 식당 투표</h2>
                 <div class="timer" id="voteTimer">00:00</div>
+                <div class="guide-text">
+                    식당 변경은 시간 내 가능하며 마지막 선택이 반영됩니다.<br>
+                    <b>전원 투표 시 즉시 메뉴 선택으로 넘어갑니다.</b>
+                </div>
+                <div class="progress-container"><div id="voteProgress" class="progress-bar"></div></div>
+                <p id="voteCountText" style="font-size:12px; color:var(--primary); margin-top:5px;"></p>
                 <div class="grid" id="resGrid"></div>
             </div>
         </div>
 
-        <!-- 주문 화면 -->
+        <!-- 2. 주문 화면 -->
         <div id="orderingSection" class="hidden">
             <div class="card">
                 <h2 id="winnerTitle" style="color:var(--primary)">🏆 오늘의 식당</h2>
                 <div id="formContainer">
                     <div class="grid" id="userGrid"></div>
+                    <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
+                    <button class="lucky-btn" onclick="randomMenu()">🎲 결정하기 힘들다면? 랜덤 추천!</button>
                     <div class="grid" id="menuGrid"></div>
                     <button class="btn-main" id="submitBtn" onclick="submitOrder()" style="margin-top:20px;">주문 제출하기</button>
                 </div>
                 <div id="orderedMsg" class="hidden">
-                    <p>주문 완료! 메뉴 변경 시 아래 버튼을 누르세요.</p>
+                    <div style="background:rgba(0,255,136,0.1); padding:15px; border-radius:12px; margin-bottom:15px;">
+                        <b style="color:var(--primary)">주문 완료!</b><br>
+                        <span style="font-size:14px;">메뉴 변경 시 변경 후 <b>구수완 사원</b>에게 메신저 부탁드립니다.</span>
+                    </div>
                     <button onclick="reOrder()" style="color:#94a3b8; background:none; border:none; text-decoration:underline; cursor:pointer;">메뉴 다시 고르기</button>
+                    
+                    <div class="stats-box">
+                        <div style="font-weight:bold; margin-bottom:15px; color:var(--primary);">🔥 실시간 인기 메뉴 TOP 3</div>
+                        <div id="statsList"></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbw9RfMmEqLauQESA77hawOh-0yIJfyzBUkgTPya5PLK5Asa-eMxFsawjd48-GC78a65vw/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxg2RWmRNCmNzL0raTps520vsrk1WNBbcF1vnz-9uNzfpYicz4dTwtUL7DsXhoQ-3ATgA/exec
+"; // <--- 여기에 URL 꼭 넣어주세요!
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -77,14 +99,16 @@
             document.getElementById('loading').classList.add('hidden');
             if(isAdmin) document.getElementById('adminSection').classList.remove('hidden');
             
-            if(state.status === "WAITING") {
-                document.getElementById('loading').innerText = "😴 투표 시작을 기다리는 중입니다...";
-                document.getElementById('loading').classList.remove('hidden');
-            } else if(state.status === "VOTING") {
+            if(state.status === "VOTING") {
                 showSection('votingSection');
                 if(!document.getElementById('resGrid').children.length) 
                     renderGrid('resGrid', state.restaurants, (v) => { selected.res = v; sendVote(); });
+                
                 startLocalTimer(state.endTime);
+                const percent = (state.voteCount / state.totalCount) * 100;
+                document.getElementById('voteProgress').style.width = percent + '%';
+                document.getElementById('voteCountText').innerText = `참여 현황: ${state.voteCount} / ${state.totalCount}`;
+                
             } else if(state.status === "ORDERING") {
                 showSection('orderingSection');
                 document.getElementById('winnerTitle').innerText = `🏆 ${state.winner}`;
@@ -92,32 +116,50 @@
                     renderGrid('userGrid', state.employees, (v) => selected.user = v);
                     renderGrid('menuGrid', state.menus, (obj) => { selected.menu = obj.name; selected.price = obj.price; }, true);
                 }
-                const isOrdered = localStorage.getItem('ordered_3.0');
+                const isOrdered = localStorage.getItem('ordered_3.1');
                 setFormDisabled(!!isOrdered);
+                if(isOrdered) renderStats();
             }
+        }
+
+        function renderStats() {
+            const list = document.getElementById('statsList');
+            list.innerHTML = '';
+            const sorted = Object.entries(state.menuStats || {}).sort((a,b) => b[1] - a[1]).slice(0, 3);
+            const max = sorted.length ? Math.max(...sorted.map(s => s[1])) : 1;
+            
+            sorted.forEach(([name, count]) => {
+                const width = (count / max) * 100;
+                list.innerHTML += `
+                    <div class="stat-row">
+                        <div class="stat-info"><span>${name}</span><span>${count}명</span></div>
+                        <div class="progress-container"><div class="progress-bar" style="width:${width}%"></div></div>
+                    </div>`;
+            });
+        }
+
+        function randomMenu() {
+            const items = document.querySelectorAll('#menuGrid .item');
+            const randIdx = Math.floor(Math.random() * items.length);
+            items[randIdx].click();
+            alert(`오늘의 추천 메뉴는 [${state.menus[randIdx].name}] 입니다! ✨`);
         }
 
         function startLocalTimer(endTime) {
             if(timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(() => {
-                const now = new Date().getTime();
-                const diff = endTime - now;
-                if(diff <= 0) {
-                    clearInterval(timerInterval);
-                    updateState();
-                    return;
-                }
-                const m = Math.floor(diff / 60000);
-                const s = Math.floor((diff % 60000) / 1000);
+                const diff = endTime - new Date().getTime();
+                if(diff <= 0) { clearInterval(timerInterval); updateState(); return; }
+                const m = Math.floor(diff / 60000), s = Math.floor((diff % 60000) / 1000);
                 document.getElementById('voteTimer').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-            }, 200); // 0.2초마다 업데이트하여 부드러움 유지
+            }, 200);
         }
 
         function startSystem() {
-            if(!confirm("모든 데이터를 초기화하고 투표를 시작하시겠습니까?")) return;
+            if(!confirm("모든 기록을 초기화하고 투표를 시작하시겠습니까?")) return;
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_START" }) }).then(() => {
-                alert("시스템이 시작되었습니다!");
-                location.href = location.pathname; // 관리자 모드 해제 후 사용자 모드로 전환
+                alert("투표가 시작되었습니다!");
+                location.href = location.pathname;
             });
         }
 
@@ -138,23 +180,21 @@
         }
 
         function sendVote() {
-            localStorage.setItem('voted_3.0', 'true');
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) });
-            alert("투표 완료! 시간이 끝나면 메뉴 선택으로 넘어갑니다.");
         }
 
         function submitOrder() {
-            if(!selected.user || !selected.menu) return alert("성함과 메뉴를 선택해주세요!");
-            localStorage.setItem('ordered_3.0', 'true');
+            if(!selected.user || !selected.menu) return alert("이름과 메뉴를 선택해주세요!");
+            localStorage.setItem('ordered_3.1', 'true');
             setFormDisabled(true);
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ 
                 type: "ORDER", userName: selected.user, restaurant: state.winner, menu: selected.menu, price: selected.price 
             }) }).then(updateState);
         }
 
-        function reOrder() { localStorage.removeItem('ordered_3.0'); setFormDisabled(false); }
+        function reOrder() { localStorage.removeItem('ordered_3.1'); setFormDisabled(false); }
         function setFormDisabled(disabled) {
-            document.getElementById('formContainer').classList.toggle('form-disabled', disabled);
+            document.getElementById('formContainer').classList.toggle('hidden', disabled);
             document.getElementById('orderedMsg').classList.toggle('hidden', !disabled);
         }
         function showSection(id) {
