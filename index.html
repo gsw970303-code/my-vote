@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v10.4</title>
+    <title>Lunch Pro v10.5</title>
     <style>
-        :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; --info: #38bdf8; }
+        :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; --info: #38bdf8; --warning: #fba51a; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
         .container { max-width: 480px; margin: 0 auto; padding: 20px; }
         .card { background: var(--card); padding: 30px; border-radius: 24px; border: 1px solid #475569; margin-bottom: 20px; position: relative; }
@@ -31,13 +31,24 @@
         .pside-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 14px; }
         .pside-item input { transform: scale(1.2); margin-right: 8px; cursor: pointer; }
         
+        /* 상단 탭 내비게이션 바 스타일 */
         .admin-navbar { display: flex; background: #0f172a; border-radius: 16px; padding: 5px; margin-bottom: 15px; border: 1px solid #334155; gap: 4px; }
-        .admin-nav-item { flex: 1; padding: 12px 6px; text-align: center; cursor: pointer; font-size: 13px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; }
+        .admin-nav-item { flex: 1; padding: 12px 6px; text-align: center; cursor: pointer; font-size: 13px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; }
         .admin-nav-item.active { background: var(--primary); color: #0f172a; }
-        .badge-recent { position: absolute; top: 5px; right: 5px; background: #fba51a; color: #0f172a; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 8px; }
+        .badge-recent { position: absolute; top: 5px; right: 5px; background: var(--warning); color: #0f172a; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 8px; }
         
-        /* 통계 레이아웃 */
-        .stats-box { text-align: left; padding: 12px; border-radius: 12px; border: 1px solid #334155; font-size: 13px; line-height: 1.7; color: #e2e8f0; margin-bottom: 10px; }
+        /* 📊 직관적인 순위 통계 비주얼 보드 레이아웃 */
+        .rank-card-list { display: flex; flex-direction: column; gap: 8px; margin-top: 5px; }
+        .rank-card-row { background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; padding: 10px 14px; border-radius: 12px; display: flex; flex-direction: column; text-align: left; }
+        .rank-card-top { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+        .rank-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: bold; color: #0f172a; }
+        .rank-badge.rank1 { background: var(--primary); }
+        .rank-badge.rank2 { background: var(--info); }
+        .rank-badge.rank3 { background: var(--warning); }
+        .rank-menu-name { color: #ffffff; flex: 1; margin-left: 8px; font-size: 13px; }
+        .rank-count-val { font-size: 12px; color: #94a3b8; font-weight: bold; }
+        .rank-mini-progress { width: 100%; height: 5px; background: #1e293b; border-radius: 3px; overflow: hidden; }
+        .rank-mini-bar { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
         
         @keyframes slotBlurEffect {
             0% { transform: scale(1.0); filter: blur(0px); background: #0f172a; border-color: #334155; }
@@ -105,18 +116,18 @@
             </div>
 
             <div class="card" id="userStatsCard" style="padding: 20px; border-color: #334155;">
-                <h3 style="color:var(--primary); margin-top:0; font-size:15px; text-align:left; border-bottom:1px solid #334155; padding-bottom:8px;">
+                <h3 style="color:var(--primary); margin-top:0; font-size:15px; text-align:left; border-bottom:1px solid #334155; padding-bottom:10px; display:flex; align-items:center; gap:6px;">
                     📊 오늘 우리 팀의 초이스는?
                 </h3>
                 
-                <div>
-                    <h4 style="margin:5px 0 6px 0; font-size:13px; color:var(--info); text-align:left;">⚡ 오늘 실시간 인기 메뉴 TOP 3</h4>
-                    <div id="userLiveTopMenus" class="stats-box" style="background: rgba(56, 189, 248, 0.05); border-color: rgba(56, 189, 248, 0.2);">실시간 데이터 수집 중...</div>
+                <div style="margin-bottom:20px;">
+                    <h4 style="margin:5px 0 10px 0; font-size:13px; color:var(--info); text-align:left; display:flex; align-items:center; gap:4px;">⚡ 오늘 실시간 인기 메뉴 TOP 3</h4>
+                    <div id="userLiveTopMenus" class="rank-card-list"></div>
                 </div>
 
-                <div style="margin-top:15px;">
-                    <h4 style="margin:0 0 6px 0; font-size:13px; color:#fba51a; text-align:left;">📅 이 집의 역대 누적 인기 메뉴 TOP 3</h4>
-                    <div id="userArchiveTopMenus" class="stats-box" style="background: rgba(251, 165, 26, 0.05); border-color: rgba(251, 165, 26, 0.2);">누적 데이터 연산 중...</div>
+                <div>
+                    <h4 style="margin:0 0 10px 0; font-size:13px; color:var(--warning); text-align:left; display:flex; align-items:center; gap:4px;">📅 이 집의 역대 누적 인기 메뉴 TOP 3</h4>
+                    <div id="userArchiveTopMenus" class="rank-card-list"></div>
                 </div>
             </div>
         </div>
@@ -162,17 +173,17 @@
             </div>
 
             <div id="adminTabContent3" class="card hidden" style="border: 1px solid #475569; padding: 20px; text-align:left;">
-                <h3 style="color:var(--primary); margin-top:0;">📈 팀 선호도 가시화 리포트</h3>
+                <h3 style="color:var(--primary); margin-top:0; display:flex; align-items:center; gap:6px;">📈 팀 선호도 가시화 리포트</h3>
                 <p style="font-size:11px; color:#94a3b8; margin-top:-8px; margin-bottom:20px;" id="totalLogCountText">* 누적 데이터 로딩 중...</p>
                 
-                <div style="margin-bottom: 15px;">
-                    <h4 style="margin:0 0 10px 0; font-size:14px; color:#fba51a;">🥇 가장 자주 간 식당 TOP 3</h4>
-                    <div id="statsTopRestaurants" class="stats-box" style="background: rgba(251, 165, 26, 0.05);">데이터 집계 중...</div>
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin:0 0 10px 0; font-size:14px; color:#fba51a; display:flex; align-items:center; gap:4px;">🥇 가장 자주 간 식당 TOP 3</h4>
+                    <div id="statsTopRestaurants" class="rank-card-list"></div>
                 </div>
 
                 <div>
-                    <h4 style="margin:0 0 10px 0; font-size:14px; color:var(--accent);">🔥 팀 전체 통합 역대 메뉴 TOP 3</h4>
-                    <div id="statsTopMenus" class="stats-box" style="background: rgba(244, 63, 94, 0.05);">데이터 집계 중...</div>
+                    <h4 style="margin:0 0 10px 0; font-size:14px; color:var(--accent); display:flex; align-items:center; gap:4px;">🔥 팀 전체 통합 역대 메뉴 TOP 3</h4>
+                    <div id="statsTopMenus" class="rank-card-list"></div>
                 </div>
             </div>
         </div>
@@ -194,9 +205,7 @@
                 const res = await fetch(GAS_URL + "?type=get");
                 state = await res.json();
                 renderUI();
-                
                 calculateAdvancedStats();
-                
                 if(isAdmin && state.status === "ORDERING") {
                     renderAdminDashboard();
                     renderHistoryLogRoom();
@@ -472,34 +481,56 @@
             });
         }
 
-        // 📊 [실시간 vs 누적 완벽 분리형 연산 모듈]
+        // 📊 [v10.5 핵심: 배지 및 막대그래프 렌더링 템플릿 함수]
+        function createRankRowHtml(rankIdx, menuName, displayCount, percentage, barColor) {
+            const rankNum = rankIdx + 1;
+            const badgeClass = `rank${rankNum}`;
+            const medal = rankNum === 1 ? '🥇' : rankNum === 2 ? '🥈' : '🥉';
+            
+            return `
+                <div class="rank-card-row">
+                    <div class="rank-card-top">
+                        <span class="rank-badge ${badgeClass}">${medal} ${rankNum}위</span>
+                        <span class="rank-menu-name">${menuName}</span>
+                        <span class="rank-count-val">${displayCount}</span>
+                    </div>
+                    <div class="rank-mini-progress">
+                        <div class="rank-mini-bar" style="width: ${percentage}%; background: ${barColor};"></div>
+                    </div>
+                </div>
+            `;
+        }
+
         function calculateAdvancedStats() {
-            // --- 1. 오늘 현재 실시간 투표 선택 현황 연산 (오직 주문 데이터 기반) ---
+            // 1. 오늘 현재 실시간 투표 선택 현황 연산 및 그래프 그리기
             let liveMenuMap = {};
+            let totalLiveOrders = 0;
             if(state.orderData && state.orderData.length > 0) {
                 state.orderData.forEach(o => {
                     if(!o.name.includes("[사이드]")) {
                         let cleanMenu = o.menu.replace(' (곱빼기)','').trim();
                         liveMenuMap[cleanMenu] = (liveMenuMap[cleanMenu] || 0) + 1;
+                        totalLiveOrders++;
                     }
                 });
             }
+            
             let topLiveArray = Object.entries(liveMenuMap).sort((a, b) => b[1] - a[1]);
             let liveHtml = '';
             if(topLiveArray.length === 0) {
-                liveHtml = '<div style="color:#94a3b8; font-style:italic;">⏳ 아직 아무도 메뉴를 고르지 않았습니다. 1등으로 골라보세요!</div>';
+                liveHtml = '<div style="color:#94a3b8; font-style:italic; padding: 10px 0;">⏳ 아직 아무도 메뉴를 고르지 않았습니다. 첫 표를 던져보세요!</div>';
             } else {
                 for(let i=0; i<Math.min(3, topLiveArray.length); i++) {
-                    let icon = i===0 ? '⚡ 1위' : i===1 ? '✨ 2위' : '👍 3위';
-                    liveHtml += `<div><b>${icon}</b> : ${topLiveArray[i][0]} (${topLiveArray[i][1]}명 선택 중)</div>`;
+                    let count = topLiveArray[i][1];
+                    let pct = totalLiveOrders > 0 ? (count / totalLiveOrders) * 100 : 0;
+                    liveHtml += createRankRowHtml(i, topLiveArray[i][0], `${count}명 선택 중`, pct, 'var(--info)');
                 }
             }
             document.getElementById('userLiveTopMenus').innerHTML = liveHtml;
 
-
-            // --- 2. 과거 장부 기록 기반 분석 연산 ---
+            // 2. 과거 장부 기록 기반 분석 연산
             if (!state.historyData || state.historyData.length === 0) {
-                const noLogMsg = '<div style="color:#94a3b8; font-style:italic;">데이터가 부족하여 누적 통계를 낼 수 없습니다.</div>';
+                const noLogMsg = '<div style="color:#94a3b8; font-style:italic; padding: 10px 0;">데이터가 부족하여 통계를 낼 수 없습니다.</div>';
                 document.getElementById('totalLogCountText').innerText = "* 누적 데이터 없음";
                 document.getElementById('statsTopRestaurants').innerHTML = noLogMsg;
                 document.getElementById('statsTopMenus').innerHTML = noLogMsg;
@@ -509,7 +540,7 @@
 
             document.getElementById('totalLogCountText').innerText = `* 총 ${state.historyData.length}개의 누적 데이터 기반 분석 완료`;
 
-            // 식당 방문 횟수 통계
+            // 식당 방문 횟수 통계 (관리자용)
             let visitMap = {};
             let trackedDayRes = new Set();
             state.historyData.forEach(h => {
@@ -520,30 +551,37 @@
                 }
             });
             let topResArray = Object.entries(visitMap).sort((a, b) => b[1] - a[1]);
+            let maxVisits = topResArray[0] ? topResArray[0][1] : 1;
             let resHtml = '';
             for(let i=0; i<Math.min(3, topResArray.length); i++) {
-                resHtml += `<div>${i===0?'🥇':i===1?'🥈':'🥉'} <b>${topResArray[i][0]}</b> (총 ${topResArray[i][1]}회 방문)</div>`;
+                let pct = (topResArray[i][1] / maxVisits) * 100;
+                resHtml += createRankRowHtml(i, topResArray[i][0], `총 ${topResArray[i][1]}회 방문`, pct, 'var(--warning)');
             }
             document.getElementById('statsTopRestaurants').innerHTML = resHtml;
 
-            // 특정 식당 맞춤형 역대 인기 메뉴 통계 추출
+            // 메뉴 데이터 파싱
             let archiveWinnerMenuMap = {};
-            let allMenuMap = {}; // 관리자용 전체 통합
+            let allMenuMap = {}; 
+            let totalWinnerRestaurantMenus = 0;
+            
             state.historyData.forEach(h => {
                 if(h.name !== "[사이드]") {
                     let cleanMenu = h.menu.replace(' (곱빼기)','').trim();
                     allMenuMap[cleanMenu] = (allMenuMap[cleanMenu] || 0) + 1;
                     if(state.winner && h.restaurant === state.winner) {
                         archiveWinnerMenuMap[cleanMenu] = (archiveWinnerMenuMap[cleanMenu] || 0) + 1;
+                        totalWinnerRestaurantMenus++;
                     }
                 }
             });
 
             // 관리자 탭 통합 인기 메뉴 매핑
             let topAllMenuArray = Object.entries(allMenuMap).sort((a, b) => b[1] - a[1]);
+            let maxAllMenu = topAllMenuArray[0] ? topAllMenuArray[0][1] : 1;
             let adminMenuHtml = '';
             for(let i=0; i<Math.min(3, topAllMenuArray.length); i++) {
-                adminMenuHtml += `<div><b>${i+1}등.</b> ${topAllMenuArray[i][0]} (${topAllMenuArray[i][1]}회)</div>`;
+                let pct = (topAllMenuArray[i][1] / maxAllMenu) * 100;
+                adminMenuHtml += createRankRowHtml(i, topAllMenuArray[i][0], `총 ${topAllMenuArray[i][1]}회 주문`, pct, 'var(--accent)');
             }
             document.getElementById('statsTopMenus').innerHTML = adminMenuHtml;
 
@@ -551,10 +589,12 @@
             let topArchiveArray = Object.entries(archiveWinnerMenuMap).sort((a, b) => b[1] - a[1]);
             let archiveHtml = '';
             if(topArchiveArray.length === 0) {
-                archiveHtml = `<div>💡 <b>${state.winner || '이 식당'}</b>은 장부에 기록된 첫 방문입니다! 역사의 주인공이 되어보세요.</div>`;
+                archiveHtml = `<div style="background: rgba(251, 165, 26, 0.05); border: 1px dashed rgba(251, 165, 26, 0.3); padding: 12px; border-radius: 12px; font-size:12px; color:#e2e8f0;">💡 <b>${state.winner || '이 식당'}</b>은 장부에 기록된 첫 방문입니다!</div>`;
             } else {
                 for(let i=0; i<Math.min(3, topArchiveArray.length); i++) {
-                    archiveHtml += `<div>👑 <b>역대 ${i+1}위</b> : ${topArchiveArray[i][0]} (총 ${topArchiveArray[i][1]}회 주문됨)</div>`;
+                    let count = topArchiveArray[i][1];
+                    let pct = totalWinnerRestaurantMenus > 0 ? (count / totalWinnerRestaurantMenus) * 100 : 0;
+                    archiveHtml += createRankRowHtml(i, topArchiveArray[i][0], `누적 ${count}회 주문됨`, pct, 'var(--warning)');
                 }
             }
             document.getElementById('userArchiveTopMenus').innerHTML = archiveHtml;
