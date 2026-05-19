@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v10.1</title>
+    <title>Lunch Pro v10.4</title>
     <style>
-        :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
+        :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; --info: #38bdf8; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
         .container { max-width: 480px; margin: 0 auto; padding: 20px; }
         .card { background: var(--card); padding: 30px; border-radius: 24px; border: 1px solid #475569; margin-bottom: 20px; position: relative; }
@@ -30,12 +30,15 @@
         .pside-container { background: #0f172a; padding: 12px; border-radius: 12px; border: 1px dashed #475569; text-align: left; margin-top: 15px; }
         .pside-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 14px; }
         .pside-item input { transform: scale(1.2); margin-right: 8px; cursor: pointer; }
-        .admin-navbar { display: flex; background: #0f172a; border-radius: 16px; padding: 5px; margin-bottom: 15px; border: 1px solid #334155; }
-        .admin-nav-item { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; }
+        
+        .admin-navbar { display: flex; background: #0f172a; border-radius: 16px; padding: 5px; margin-bottom: 15px; border: 1px solid #334155; gap: 4px; }
+        .admin-nav-item { flex: 1; padding: 12px 6px; text-align: center; cursor: pointer; font-size: 13px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; }
         .admin-nav-item.active { background: var(--primary); color: #0f172a; }
         .badge-recent { position: absolute; top: 5px; right: 5px; background: #fba51a; color: #0f172a; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 8px; }
         
-        /* 🎰 [④번 반영] 슬롯머신 역동적인 롤링 이펙트 애니메이션 스타일 */
+        /* 통계 레이아웃 */
+        .stats-box { text-align: left; padding: 12px; border-radius: 12px; border: 1px solid #334155; font-size: 13px; line-height: 1.7; color: #e2e8f0; margin-bottom: 10px; }
+        
         @keyframes slotBlurEffect {
             0% { transform: scale(1.0); filter: blur(0px); background: #0f172a; border-color: #334155; }
             50% { transform: scale(1.05); filter: blur(2px); background: rgba(244, 63, 94, 0.3); border-color: var(--accent); color: #ffffff; }
@@ -100,12 +103,29 @@
                     <button onclick="reOrder()" style="color:#94a3b8; background:none; border:none; text-decoration:underline; cursor:pointer;">메뉴 다시 고르기</button>
                 </div>
             </div>
+
+            <div class="card" id="userStatsCard" style="padding: 20px; border-color: #334155;">
+                <h3 style="color:var(--primary); margin-top:0; font-size:15px; text-align:left; border-bottom:1px solid #334155; padding-bottom:8px;">
+                    📊 오늘 우리 팀의 초이스는?
+                </h3>
+                
+                <div>
+                    <h4 style="margin:5px 0 6px 0; font-size:13px; color:var(--info); text-align:left;">⚡ 오늘 실시간 인기 메뉴 TOP 3</h4>
+                    <div id="userLiveTopMenus" class="stats-box" style="background: rgba(56, 189, 248, 0.05); border-color: rgba(56, 189, 248, 0.2);">실시간 데이터 수집 중...</div>
+                </div>
+
+                <div style="margin-top:15px;">
+                    <h4 style="margin:0 0 6px 0; font-size:13px; color:#fba51a; text-align:left;">📅 이 집의 역대 누적 인기 메뉴 TOP 3</h4>
+                    <div id="userArchiveTopMenus" class="stats-box" style="background: rgba(251, 165, 26, 0.05); border-color: rgba(251, 165, 26, 0.2);">누적 데이터 연산 중...</div>
+                </div>
+            </div>
         </div>
 
         <div id="adminDashboard" class="hidden">
             <div class="admin-navbar">
                 <div class="admin-nav-item active" id="tabBtn1" onclick="switchAdminTab(1)">📊 실시간 정산</div>
                 <div class="admin-nav-item" id="tabBtn2" onclick="switchAdminTab(2)">📂 히스토리 장부</div>
+                <div class="admin-nav-item" id="tabBtn3" onclick="switchAdminTab(3)">📈 데이터 분석 룸</div>
             </div>
 
             <div id="adminTabContent1" class="card" style="border: 1px solid var(--primary); padding: 20px;">
@@ -140,6 +160,21 @@
                     </table>
                 </div>
             </div>
+
+            <div id="adminTabContent3" class="card hidden" style="border: 1px solid #475569; padding: 20px; text-align:left;">
+                <h3 style="color:var(--primary); margin-top:0;">📈 팀 선호도 가시화 리포트</h3>
+                <p style="font-size:11px; color:#94a3b8; margin-top:-8px; margin-bottom:20px;" id="totalLogCountText">* 누적 데이터 로딩 중...</p>
+                
+                <div style="margin-bottom: 15px;">
+                    <h4 style="margin:0 0 10px 0; font-size:14px; color:#fba51a;">🥇 가장 자주 간 식당 TOP 3</h4>
+                    <div id="statsTopRestaurants" class="stats-box" style="background: rgba(251, 165, 26, 0.05);">데이터 집계 중...</div>
+                </div>
+
+                <div>
+                    <h4 style="margin:0 0 10px 0; font-size:14px; color:var(--accent);">🔥 팀 전체 통합 역대 메뉴 TOP 3</h4>
+                    <div id="statsTopMenus" class="stats-box" style="background: rgba(244, 63, 94, 0.05);">데이터 집계 중...</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -159,6 +194,9 @@
                 const res = await fetch(GAS_URL + "?type=get");
                 state = await res.json();
                 renderUI();
+                
+                calculateAdvancedStats();
+                
                 if(isAdmin && state.status === "ORDERING") {
                     renderAdminDashboard();
                     renderHistoryLogRoom();
@@ -169,7 +207,7 @@
         function copyLaunchNotice() {
             const dateStr = state.sysDate || `${new Date().getMonth()+1}.${new Date().getDate()}`;
             const link = window.location.href.split('?')[0];
-            const text = `${dateStr} 회계팀 점심 투표의 건\n\n안녕하십니까 회계팀 구수완입니다!\n\n금일 점심 투표를 진행하고자 하오니 아래 링크를 클릭하시어\n투표 및 메뉴 선택을 진행해주시기 바랍니다!\n\n링크: ${link}\n\n감사합니다.\n구수완 올림`;
+            const text = `${dateStr} 회계팀 점심 투표의 건 (식당 투표는 2분 후 마감)\n\n안녕하십니까 회계팀 구수완입니다!\n\n금일 점심 투표를 진행하고자 하오니 아래 링크를 클릭하시어\n투표 및 메뉴 선택을 진행해주시기 바랍니다!\n\n링크: ${link}\n\n감사합니다.\n구수완 올림`;
             navigator.clipboard.writeText(text);
             alert("📋 투표 시작 안내 문구가 클립보드에 복사되었습니다.");
         }
@@ -283,8 +321,11 @@
         function switchAdminTab(tabNum) {
             document.getElementById('tabBtn1').classList.toggle('active', tabNum === 1);
             document.getElementById('tabBtn2').classList.toggle('active', tabNum === 2);
+            document.getElementById('tabBtn3').classList.toggle('active', tabNum === 3);
+            
             document.getElementById('adminTabContent1').classList.toggle('hidden', tabNum !== 1);
             document.getElementById('adminTabContent2').classList.toggle('hidden', tabNum !== 2);
+            document.getElementById('adminTabContent3').classList.toggle('hidden', tabNum !== 3);
         }
 
         function renderAdminDashboard() {
@@ -385,7 +426,6 @@
             document.getElementById('adminSummary').innerHTML = summaryHtml;
         }
 
-        // 💡 [①번 반영] 조회 룸 고도화: 날짜 및 식당 다중/단일 필터 세팅
         function renderHistoryLogRoom() {
             if(!state.historyData || state.historyData.length === 0) return;
             const resSelect = document.getElementById('filterRestaurant');
@@ -430,6 +470,94 @@
                     <td>${Number(h.price).toLocaleString()}원</td>
                 </tr>`;
             });
+        }
+
+        // 📊 [실시간 vs 누적 완벽 분리형 연산 모듈]
+        function calculateAdvancedStats() {
+            // --- 1. 오늘 현재 실시간 투표 선택 현황 연산 (오직 주문 데이터 기반) ---
+            let liveMenuMap = {};
+            if(state.orderData && state.orderData.length > 0) {
+                state.orderData.forEach(o => {
+                    if(!o.name.includes("[사이드]")) {
+                        let cleanMenu = o.menu.replace(' (곱빼기)','').trim();
+                        liveMenuMap[cleanMenu] = (liveMenuMap[cleanMenu] || 0) + 1;
+                    }
+                });
+            }
+            let topLiveArray = Object.entries(liveMenuMap).sort((a, b) => b[1] - a[1]);
+            let liveHtml = '';
+            if(topLiveArray.length === 0) {
+                liveHtml = '<div style="color:#94a3b8; font-style:italic;">⏳ 아직 아무도 메뉴를 고르지 않았습니다. 1등으로 골라보세요!</div>';
+            } else {
+                for(let i=0; i<Math.min(3, topLiveArray.length); i++) {
+                    let icon = i===0 ? '⚡ 1위' : i===1 ? '✨ 2위' : '👍 3위';
+                    liveHtml += `<div><b>${icon}</b> : ${topLiveArray[i][0]} (${topLiveArray[i][1]}명 선택 중)</div>`;
+                }
+            }
+            document.getElementById('userLiveTopMenus').innerHTML = liveHtml;
+
+
+            // --- 2. 과거 장부 기록 기반 분석 연산 ---
+            if (!state.historyData || state.historyData.length === 0) {
+                const noLogMsg = '<div style="color:#94a3b8; font-style:italic;">데이터가 부족하여 누적 통계를 낼 수 없습니다.</div>';
+                document.getElementById('totalLogCountText').innerText = "* 누적 데이터 없음";
+                document.getElementById('statsTopRestaurants').innerHTML = noLogMsg;
+                document.getElementById('statsTopMenus').innerHTML = noLogMsg;
+                document.getElementById('userArchiveTopMenus').innerHTML = noLogMsg;
+                return;
+            }
+
+            document.getElementById('totalLogCountText').innerText = `* 총 ${state.historyData.length}개의 누적 데이터 기반 분석 완료`;
+
+            // 식당 방문 횟수 통계
+            let visitMap = {};
+            let trackedDayRes = new Set();
+            state.historyData.forEach(h => {
+                let uniqueKey = `${h.date}_${h.restaurant}`;
+                if(!trackedDayRes.has(uniqueKey)) {
+                    trackedDayRes.add(uniqueKey);
+                    visitMap[h.restaurant] = (visitMap[h.restaurant] || 0) + 1;
+                }
+            });
+            let topResArray = Object.entries(visitMap).sort((a, b) => b[1] - a[1]);
+            let resHtml = '';
+            for(let i=0; i<Math.min(3, topResArray.length); i++) {
+                resHtml += `<div>${i===0?'🥇':i===1?'🥈':'🥉'} <b>${topResArray[i][0]}</b> (총 ${topResArray[i][1]}회 방문)</div>`;
+            }
+            document.getElementById('statsTopRestaurants').innerHTML = resHtml;
+
+            // 특정 식당 맞춤형 역대 인기 메뉴 통계 추출
+            let archiveWinnerMenuMap = {};
+            let allMenuMap = {}; // 관리자용 전체 통합
+            state.historyData.forEach(h => {
+                if(h.name !== "[사이드]") {
+                    let cleanMenu = h.menu.replace(' (곱빼기)','').trim();
+                    allMenuMap[cleanMenu] = (allMenuMap[cleanMenu] || 0) + 1;
+                    if(state.winner && h.restaurant === state.winner) {
+                        archiveWinnerMenuMap[cleanMenu] = (archiveWinnerMenuMap[cleanMenu] || 0) + 1;
+                    }
+                }
+            });
+
+            // 관리자 탭 통합 인기 메뉴 매핑
+            let topAllMenuArray = Object.entries(allMenuMap).sort((a, b) => b[1] - a[1]);
+            let adminMenuHtml = '';
+            for(let i=0; i<Math.min(3, topAllMenuArray.length); i++) {
+                adminMenuHtml += `<div><b>${i+1}등.</b> ${topAllMenuArray[i][0]} (${topAllMenuArray[i][1]}회)</div>`;
+            }
+            document.getElementById('statsTopMenus').innerHTML = adminMenuHtml;
+
+            // 유저 탭 오늘 식당 전용 역대 메뉴 매핑
+            let topArchiveArray = Object.entries(archiveWinnerMenuMap).sort((a, b) => b[1] - a[1]);
+            let archiveHtml = '';
+            if(topArchiveArray.length === 0) {
+                archiveHtml = `<div>💡 <b>${state.winner || '이 식당'}</b>은 장부에 기록된 첫 방문입니다! 역사의 주인공이 되어보세요.</div>`;
+            } else {
+                for(let i=0; i<Math.min(3, topArchiveArray.length); i++) {
+                    archiveHtml += `<div>👑 <b>역대 ${i+1}위</b> : ${topArchiveArray[i][0]} (총 ${topArchiveArray[i][1]}회 주문됨)</div>`;
+                }
+            }
+            document.getElementById('userArchiveTopMenus').innerHTML = archiveHtml;
         }
 
         function saveTodayHistory() {
@@ -503,7 +631,6 @@
             });
         }
 
-        // 💡 [④번 반영] 메뉴 랜덤 슬롯머신에 블러 및 역동적인 컬러 스케일 이펙트 강화 효과 부여
         function randomMenuSlot() {
             const items = document.querySelectorAll('#menuGrid .item');
             if(!items.length) return;
@@ -511,12 +638,11 @@
             btn.disabled = true; btn.innerText = "🎰 메뉴 셔플 중...";
             
             let count = 0; 
-            const maxRolls = 20; // 셔플 회수를 늘려 더 긴장감 조성
+            const maxRolls = 20; 
             
             const interval = setInterval(() => {
                 items.forEach(el => el.classList.remove('slot-rolling'));
                 
-                // 랜덤하게 무작위 타겟들에게 롤링 클래스 분사
                 const randIdx1 = Math.floor(Math.random() * items.length);
                 const randIdx2 = Math.floor(Math.random() * items.length);
                 items[randIdx1].classList.add('slot-rolling');
@@ -526,11 +652,9 @@
                     clearInterval(interval);
                     items.forEach(el => el.classList.remove('slot-rolling'));
                     
-                    // 최종 한 장 엄선하여 자동 선택(클릭) 처리
                     const finalChoice = items[Math.floor(Math.random() * items.length)];
                     finalChoice.click();
                     
-                    // 선택된 메뉴 강조 효과
                     finalChoice.style.transition = "0.3s";
                     finalChoice.style.transform = "scale(1.1)";
                     setTimeout(() => finalChoice.style.transform = "scale(1.0)", 300);
@@ -538,7 +662,7 @@
                     btn.disabled = false; 
                     btn.innerText = "🎲 슬롯머신 재가동";
                 }
-            }, 80); // 속도를 빠르게 당겨서 더 역동적으로 표현
+            }, 80); 
         }
 
         function startLocalTimer(endTime) {
@@ -571,7 +695,7 @@
             setFormDisabled(true);
 
             let finalMainPrice = selected.price;
-            const doubleCb = document.getElementById('doubleSizeCb');
+            const doubleCb = document.getElementById('doubleSizeArea');
             if(doubleCb && doubleCb.checked) { finalMainPrice += selected.doubleFee; }
 
             fetch(GAS_URL, { 
