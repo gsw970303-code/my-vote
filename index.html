@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v10.5</title>
+    <title>Lunch Pro v10.6</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; --info: #38bdf8; --warning: #fba51a; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -31,13 +31,11 @@
         .pside-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 14px; }
         .pside-item input { transform: scale(1.2); margin-right: 8px; cursor: pointer; }
         
-        /* 상단 탭 내비게이션 바 스타일 */
         .admin-navbar { display: flex; background: #0f172a; border-radius: 16px; padding: 5px; margin-bottom: 15px; border: 1px solid #334155; gap: 4px; }
         .admin-nav-item { flex: 1; padding: 12px 6px; text-align: center; cursor: pointer; font-size: 13px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; }
         .admin-nav-item.active { background: var(--primary); color: #0f172a; }
         .badge-recent { position: absolute; top: 5px; right: 5px; background: var(--warning); color: #0f172a; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 8px; }
         
-        /* 📊 직관적인 순위 통계 비주얼 보드 레이아웃 */
         .rank-card-list { display: flex; flex-direction: column; gap: 8px; margin-top: 5px; }
         .rank-card-row { background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; padding: 10px 14px; border-radius: 12px; display: flex; flex-direction: column; text-align: left; }
         .rank-card-top { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
@@ -190,7 +188,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwZa1_UC0C97F0qukF6epgSbG2f0GmtH_DNgzW0GUeBgax6Gc60sNz7xFxEF16CN_cmQw/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwSe-SR_z8BEw5r7HADR7UBssivqrC1QIKDnRMK99S5ZjexTpV9lVxRmDZ37-f1ZsfF/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -481,7 +479,6 @@
             });
         }
 
-        // 📊 [v10.5 핵심: 배지 및 막대그래프 렌더링 템플릿 함수]
         function createRankRowHtml(rankIdx, menuName, displayCount, percentage, barColor) {
             const rankNum = rankIdx + 1;
             const badgeClass = `rank${rankNum}`;
@@ -502,7 +499,6 @@
         }
 
         function calculateAdvancedStats() {
-            // 1. 오늘 현재 실시간 투표 선택 현황 연산 및 그래프 그리기
             let liveMenuMap = {};
             let totalLiveOrders = 0;
             if(state.orderData && state.orderData.length > 0) {
@@ -528,7 +524,6 @@
             }
             document.getElementById('userLiveTopMenus').innerHTML = liveHtml;
 
-            // 2. 과거 장부 기록 기반 분석 연산
             if (!state.historyData || state.historyData.length === 0) {
                 const noLogMsg = '<div style="color:#94a3b8; font-style:italic; padding: 10px 0;">데이터가 부족하여 통계를 낼 수 없습니다.</div>';
                 document.getElementById('totalLogCountText').innerText = "* 누적 데이터 없음";
@@ -540,7 +535,6 @@
 
             document.getElementById('totalLogCountText').innerText = `* 총 ${state.historyData.length}개의 누적 데이터 기반 분석 완료`;
 
-            // 식당 방문 횟수 통계 (관리자용)
             let visitMap = {};
             let trackedDayRes = new Set();
             state.historyData.forEach(h => {
@@ -559,7 +553,6 @@
             }
             document.getElementById('statsTopRestaurants').innerHTML = resHtml;
 
-            // 메뉴 데이터 파싱
             let archiveWinnerMenuMap = {};
             let allMenuMap = {}; 
             let totalWinnerRestaurantMenus = 0;
@@ -575,7 +568,6 @@
                 }
             });
 
-            // 관리자 탭 통합 인기 메뉴 매핑
             let topAllMenuArray = Object.entries(allMenuMap).sort((a, b) => b[1] - a[1]);
             let maxAllMenu = topAllMenuArray[0] ? topAllMenuArray[0][1] : 1;
             let adminMenuHtml = '';
@@ -585,7 +577,6 @@
             }
             document.getElementById('statsTopMenus').innerHTML = adminMenuHtml;
 
-            // 유저 탭 오늘 식당 전용 역대 메뉴 매핑
             let topArchiveArray = Object.entries(archiveWinnerMenuMap).sort((a, b) => b[1] - a[1]);
             let archiveHtml = '';
             if(topArchiveArray.length === 0) {
@@ -705,11 +696,20 @@
             }, 80); 
         }
 
+        /* 🔥 [v10.6 수정 구역]: 타이머 종료 시 프론트엔드가 폭주하지 않고 백엔드 결정을 안전하게 동기화 대기 */
         function startLocalTimer(endTime) {
             if(timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(() => {
                 const diff = endTime - new Date().getTime();
-                if(diff <= 0) { clearInterval(timerInterval); updateState(); return; }
+                
+                if(diff <= 0) { 
+                    clearInterval(timerInterval); 
+                    document.getElementById('voteTimer').innerText = "00:00";
+                    document.getElementById('loading').classList.remove('hidden'); // 주사위가 굴러가는 동안 임시 락업
+                    setTimeout(updateState, 1000); // 백엔드가 시트 셀에 winner를 박을 수 있는 1초 버퍼 생성
+                    return; 
+                }
+                
                 const m = Math.floor(diff / 60000), s = Math.floor((diff % 60000) / 1000);
                 document.getElementById('voteTimer').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
             }, 200);
@@ -725,7 +725,7 @@
         function sendVote() { fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) }); }
         
         function submitOrder() {
-            if(!selected.user || !selected.menu) return alert("이름과 메인 메뉴를 선택해주세요!");
+            if(!selected.menu || !selected.user) return alert("이름과 메인 메뉴를 선택해주세요!");
             let checkedSides = [];
             document.querySelectorAll('.pside-cb:checked').forEach(cb => {
                 checkedSides.push({ name: cb.getAttribute('data-name'), price: Number(cb.getAttribute('data-price')) });
