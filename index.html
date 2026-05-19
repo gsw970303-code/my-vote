@@ -3,19 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v6.0</title>
+    <title>Lunch Pro v7.0</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
         .container { max-width: 480px; margin: 0 auto; padding: 20px; }
         .card { background: var(--card); padding: 30px; border-radius: 24px; border: 1px solid #475569; margin-bottom: 20px; position: relative; }
         .timer { font-size: 64px; color: var(--primary); font-weight: 800; margin: 10px 0; font-variant-numeric: tabular-nums; }
-        .guide-text { font-size: 13px; color: #94a3b8; line-height: 1.5; margin-bottom: 15px; }
         .rule-text { font-size: 13px; color: #fba51a; font-weight: bold; line-height: 1.5; margin: 5px 0 15px 0; background: rgba(251, 165, 26, 0.1); padding: 8px; border-radius: 8px; border: 1px dashed rgba(251, 165, 26, 0.3); }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
         .item { background: #0f172a; padding: 18px; border-radius: 16px; border: 2px solid #334155; cursor: pointer; transition: 0.1s; position: relative; }
         .item.active { background: var(--primary); color: #0f172a; font-weight: bold; border-color: var(--primary); }
         .btn-main { width: 100%; padding: 20px; background: var(--primary); color: #0f172a; border: none; border-radius: 16px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .btn-accent { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: 16px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 15px; }
         .progress-container { width: 100%; background: #334155; height: 8px; border-radius: 4px; margin-top: 10px; overflow: hidden; }
         .progress-bar { height: 100%; background: var(--primary); transition: 0.3s; width: 0%; }
         .lucky-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 8px 15px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; cursor: pointer; width: 100%; }
@@ -27,11 +27,14 @@
         .exclude-cb { transform: scale(1.2); cursor: pointer; }
         .excluded-row { text-decoration: line-through; color: #64748b !important; background: rgba(244, 63, 94, 0.05); }
         .not-selected { color: #f43f5e; font-style: italic; }
-        
-        /* 개인 사이드바 스타일 */
         .pside-container { background: #0f172a; padding: 12px; border-radius: 12px; border: 1px dashed #475569; text-align: left; margin-top: 15px; }
         .pside-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 14px; }
         .pside-item input { transform: scale(1.2); margin-right: 8px; cursor: pointer; }
+
+        /* 📱 어드민 스마트 상태바/메뉴바 스타일 */
+        .admin-navbar { display: flex; background: #0f172a; border-radius: 16px; padding: 5px; margin-bottom: 15px; border: 1px solid #334155; }
+        .admin-nav-item { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; }
+        .admin-nav-item.active { background: var(--primary); color: #0f172a; }
     </style>
 </head>
 <body>
@@ -39,7 +42,7 @@
         <div id="loading">⚡ 데이터 동기화 중...</div>
 
         <div id="adminStartSection" class="hidden" style="background:#334155; padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed var(--primary);">
-            <h3 style="margin:0 0 10px 0; font-size:16px;">🛠 관리자 메뉴</h3>
+            <h3 style="margin:0 0 10px 0; font-size:16px;">🛠 관리자 빠른 제어</h3>
             <button class="btn-main" onclick="startSystem()">점심 투표 시작 (데이터 초기화)</button>
         </div>
 
@@ -52,7 +55,6 @@
                 <h2>🍴 식당 투표</h2>
                 <div class="timer" id="voteTimer">00:00</div>
                 <div class="rule-text">📢 식당은 과반수로 정해지게 됩니다<br>(미투표 시 투표인원들 중 과반수로 가게 됨)</div>
-                <div class="guide-text">식당 변경은 시간 내 가능하며 마지막 선택이 반영됩니다.</div>
                 <div class="progress-container"><div id="voteProgress" class="progress-bar"></div></div>
                 <p id="voteCountText" style="font-size:12px; color:var(--primary); margin-top:5px;"></p>
                 <div class="grid" id="resGrid"></div>
@@ -78,7 +80,7 @@
                 <div id="orderedMsg" class="hidden">
                     <div style="background:rgba(0,255,136,0.1); padding:15px; border-radius:12px; margin-bottom:15px;">
                         <b style="color:var(--primary)">주문 완료!</b><br>
-                        <span style="font-size:13px; color:#94a3b8;">메뉴 변경 시 <b>구수완 사원</b>에게 메신저 부탁드립니다.</span>
+                        <span style="font-size:13px; color:#94a3b8;">메뉴 변경 시 메신저 부탁드립니다.</span>
                     </div>
                     <button onclick="reOrder()" style="color:#94a3b8; background:none; border:none; text-decoration:underline; cursor:pointer;">메뉴 다시 고르기</button>
                 </div>
@@ -86,22 +88,31 @@
         </div>
 
         <div id="adminDashboard" class="hidden">
-            <div class="card" style="border: 1px solid var(--primary);">
-                <h3 style="color:var(--primary); margin-top:0; margin-bottom:15px;">📊 실시간 정산 (어드민)</h3>
-                
+            <div class="admin-navbar">
+                <div class="admin-nav-item active" id="tabBtn1" onclick="switchAdminTab(1)">📊 실시간 정산</div>
+                <div class="admin-nav-item" id="tabBtn2" onclick="switchAdminTab(2)">📈 데이터 분석 룸</div>
+            </div>
+
+            <div id="adminTabContent1" class="card" style="border: 1px solid var(--primary); padding: 20px;">
                 <div id="sideMenuArea" class="hidden">
-                    <p style="font-size:13px; color:var(--primary); text-align:left; font-weight:bold;">✨ 사이드 메뉴 일괄 추가 (중복 가능)</p>
+                    <p style="font-size:13px; color:var(--primary); text-align:left; font-weight:bold;">✨ 사이드 메뉴 일괄 추가</p>
                     <div class="grid" id="sideGrid" style="margin-bottom:20px;"></div>
                 </div>
-
                 <div id="adminOrderList"></div>
                 <div id="adminSummary" class="summary-card"></div>
+                
+                <button class="btn-main" id="btnSaveHistory" onclick="saveTodayHistory()" style="margin-top:20px; background:#fba51a; color:#0f172a;">💾 오늘의 점심 최종 확정 및 기록</button>
+            </div>
+
+            <div id="adminTabContent2" class="card hidden" style="border: 1px solid #475569; padding: 20px; text-align:left;">
+                <h3 style="color:var(--primary); margin-top:0;">📈 팀 선호도 가시화</h3>
+                <div id="analyticsContent" style="font-size:14px; line-height:1.8; color:#e2e8f0;">데이터 집계 중...</div>
             </div>
         </div>
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwg7HqxKAvqaloKaq7OPEEizELNqOJhjLyuuOYHLByCATjXcbRCNy6X1RZREzgjJsTQcA/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzOb9JJf5XYyBl6cu-sjpNnCCQjgT5llADD86LAucVQzmcA3xruUpMO7FC-mmFjY86a2A/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -110,13 +121,17 @@
         let selected = { res: null, user: null, menu: null, price: 0 };
         let excludedUsers = new Set(); 
         let timerInterval;
+        let activeAdminTab = 1;
 
         async function updateState() {
             try {
                 const res = await fetch(GAS_URL + "?type=get");
                 state = await res.json();
                 renderUI();
-                if(isAdmin && state.status === "ORDERING") renderAdminDashboard();
+                if(isAdmin && state.status === "ORDERING") {
+                    renderAdminDashboard();
+                    renderAnalytics();
+                }
             } catch (e) {}
         }
 
@@ -127,8 +142,10 @@
 
             if(state.status === "WAITING") {
                 document.getElementById('waitingSection').classList.remove('hidden');
+                document.getElementById('adminDashboard').classList.add('hidden');
             } else if(state.status === "VOTING") {
                 document.getElementById('votingSection').classList.remove('hidden');
+                document.getElementById('adminDashboard').classList.add('hidden');
                 if(!document.getElementById('resGrid').children.length) 
                     renderGrid('resGrid', state.restaurants, (v) => { selected.res = v; sendVote(); });
                 startLocalTimer(state.endTime);
@@ -139,35 +156,40 @@
                 document.getElementById('orderingSection').classList.remove('hidden');
                 document.getElementById('winnerTitle').innerText = `🏆 ${state.winner}`;
                 
+                // 💡 어드민 꼬임 방지 보완: 본인 메뉴 선택 안 했으면 폼 무조건 노출
+                const isOrdered = localStorage.getItem('ordered_6.0');
                 if(!document.getElementById('userGrid').children.length) {
                     renderGrid('userGrid', state.employees, (v) => selected.user = v);
                     renderGrid('menuGrid', state.menus, (obj) => { selected.menu = obj.name; selected.price = obj.price; }, true);
                     
-                    // 🥤 개인 사이드 메뉴 그리기
                     const pSideArea = document.getElementById('personalSideArea');
                     const pSideList = document.getElementById('personalSideList');
                     if(state.personalSides && state.personalSides.length > 0) {
                         pSideArea.classList.remove('hidden');
                         pSideList.innerHTML = '';
-                        state.personalSides.forEach((side, idx) => {
+                        state.personalSides.forEach((side) => {
                             pSideList.innerHTML += `
                                 <div class="pside-item">
                                     <label><input type="checkbox" class="pside-cb" data-name="${side.name}" data-price="${side.price}"> ${side.name.replace('(개인사이드)','').trim()}</label>
                                     <span style="color:#94a3b8;">+${side.price.toLocaleString()}원</span>
                                 </div>`;
                         });
-                    } else {
-                        pSideArea.classList.add('hidden');
-                    }
+                    } else { pSideArea.classList.add('hidden'); }
                 }
-                const isOrdered = localStorage.getItem('ordered_6.0');
                 setFormDisabled(!!isOrdered);
             }
         }
 
+        function switchAdminTab(tabNum) {
+            activeAdminTab = tabNum;
+            document.getElementById('tabBtn1').classList.toggle('active', tabNum === 1);
+            document.getElementById('tabBtn2').classList.toggle('active', tabNum === 2);
+            document.getElementById('adminTabContent1').classList.toggle('hidden', tabNum !== 1);
+            document.getElementById('adminTabContent2').classList.toggle('hidden', tabNum !== 2);
+        }
+
         function renderAdminDashboard() {
             document.getElementById('adminDashboard').classList.remove('hidden');
-            
             const sideArea = document.getElementById('sideMenuArea');
             if(state.sideMenus && state.sideMenus.length > 0) {
                 sideArea.classList.remove('hidden');
@@ -177,13 +199,11 @@
             }
 
             let listHtml = `<table class="admin-table"><tr><th>성함</th><th>메뉴</th><th>가격</th><th style="text-align:center;">제외</th></tr>`;
-            
             let totalEmployeesCount = state.employees.length;
             let currentExcludedCount = 0;
             let currentTotalPrice = 0;
             let currentMenuStats = {};
 
-            // 유저별 주문 매핑 구조화 (1명이 여러 개 시켰을 수 있음 - 메인 + 개인사이드)
             let userOrdersMap = {};
             state.orderData.forEach(order => {
                 if(!order.name.includes("[사이드]")) {
@@ -192,7 +212,6 @@
                 }
             });
 
-            // Employees 전체 명단 기준으로 테이블 마크업 생성
             state.employees.forEach(empName => {
                 const orders = userOrdersMap[empName] || [];
                 const isExcluded = excludedUsers.has(empName);
@@ -202,7 +221,6 @@
                 if (isExcluded) currentExcludedCount++;
 
                 if (orders.length === 0) {
-                    // 메뉴 미선택자
                     listHtml += `<tr ${rowClass}>
                         <td>${empName}</td>
                         <td><span class="not-selected">메뉴 미선택</span></td>
@@ -210,7 +228,6 @@
                         <td style="text-align:center;"><input type="checkbox" class="exclude-cb" ${checked} onchange="toggleExclude('${empName}')"></td>
                     </tr>`;
                 } else {
-                    // 메뉴 선택자 (여러 개 시켰을 경우 병합 표시)
                     let menusArray = orders.map(o => o.menu.replace('(개인사이드)','').trim());
                     let subTotal = orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
 
@@ -231,7 +248,6 @@
                 }
             });
 
-            // 관리자 전용 일괄 사이드 추가분 처리
             state.orderData.forEach((order, idx) => {
                 if (order.name.includes("[사이드]")) {
                     const uniqueKey = `side_${idx}`;
@@ -257,25 +273,90 @@
             listHtml += `</table>`;
             document.getElementById('adminOrderList').innerHTML = listHtml;
 
-            // 요약 결과 계산 및 출력
             let currentEatingCount = totalEmployeesCount - currentExcludedCount;
-            
             let summaryHtml = `<strong>📋 전체 메뉴별 취합 (사이드 포함 / 제외자 미포함)</strong><br>`;
-            let statCount = 0;
             for (const [menu, count] of Object.entries(currentMenuStats)) {
                 summaryHtml += `- ${menu}: ${count}개<br>`;
-                statCount++;
             }
-            if(statCount === 0) summaryHtml += `<span style="color:#64748b;">주문 내역이 없습니다.</span><br>`;
             
             summaryHtml += `<hr style="border-color:var(--primary); margin:10px 0;">`;
+            // 💡 인원 수 가시화 요청 반영 완료
             summaryHtml += `<strong>💰 실제 결제 인원: ${currentEatingCount}명 (전체 ${totalEmployeesCount}명 중 ${currentExcludedCount}명 제외)</strong><br>`;
             summaryHtml += `<strong>💸 최종 정산 합계: ${currentTotalPrice.toLocaleString()}원</strong>`;
             summaryHtml += `<hr style="border-color:var(--primary); margin:10px 0;">`;
-            // 📞 전화번호 하단 배치 완료
             summaryHtml += `📱 식당 번호: <span style="color:#ffffff; font-weight:bold;">${state.phone || "미등록"}</span>`;
             
             document.getElementById('adminSummary').innerHTML = summaryHtml;
+        }
+
+        // 📈 [v7.0 신설] 히스토리 기반 데이터 가시화 분석 룸
+        function renderAnalytics() {
+            if(!state.historyData || state.historyData.length === 0) {
+                document.getElementById('analyticsContent').innerHTML = `<span style="color:#64748b;">아직 누적된 데이터가 없습니다. 하단의 확정 버튼을 눌러 데이터를 쌓아보세요!</span>`;
+                return;
+            }
+
+            let resCounts = {};
+            let menuCounts = {};
+            state.historyData.forEach(h => {
+                resCounts[h.restaurant] = (resCounts[h.restaurant] || 0) + 1;
+                menuCounts[h.menu] = (menuCounts[h.menu] || 0) + 1;
+            });
+
+            let topRes = Object.entries(resCounts).sort((a,b) => b[1]-a[1]).slice(0, 3);
+            let topMenu = Object.entries(menuCounts).sort((a,b) => b[1]-a[1]).slice(0, 3);
+
+            let html = `🥇 <strong>가장 자주 간 식당 TOP 3</strong><br>`;
+            topRes.forEach((r, i) => { html += `${i+1}등. ${r[0]} (${r[1]}회 방문)<br>`; });
+            
+            html += `<hr style="border-color:#334155; margin:10px 0;">`;
+            html += `🔥 <strong>팀원들이 사랑한 최애 메뉴 TOP 3</strong><br>`;
+            topMenu.forEach((m, i) => { html += `${i+1}등. ${m[0].replace('(개인사이드)','')} (${m[1]}번 주문)<br>`; });
+
+            html += `<hr style="border-color:#334155; margin:10px 0;">`;
+            html += `<span style="font-size:11px; color:#94a3b8;">* 총 ${state.historyData.length}개의 누적 데이터 기반 분석 완료</span>`;
+            
+            document.getElementById('analyticsContent').innerHTML = html;
+        }
+
+        // 💾 최종 확정 버튼 액션
+        function saveTodayHistory() {
+            if(!confirm("현재 화면의 정산 인원과 메뉴 내역을 History에 확정 저장하시겠습니까?")) return;
+            
+            let recordsToSave = [];
+            let userOrdersMap = {};
+            state.orderData.forEach(order => {
+                if(!order.name.includes("[사이드]")) {
+                    if(!userOrdersMap[order.name]) userOrdersMap[order.name] = [];
+                    userOrdersMap[order.name].push(order);
+                }
+            });
+
+            state.employees.forEach(empName => {
+                if (!excludedUsers.has(empName) && userOrdersMap[empName]) {
+                    userOrdersMap[empName].forEach(o => {
+                        recordsToSave.push({ name: empName, menu: o.menu, price: o.price });
+                    });
+                }
+            });
+
+            state.orderData.forEach((order, idx) => {
+                if (order.name.includes("[사이드]") && !excludedUsers.has(`side_${idx}`)) {
+                    recordsToSave.push({ name: "[사이드]", menu: order.menu, price: order.price });
+                }
+            });
+
+            fetch(GAS_URL, {
+                method: "POST",
+                body: JSON.stringify({
+                    type: "ADMIN_SAVE_HISTORY",
+                    restaurant: state.winner,
+                    records: recordsToSave
+                })
+            }).then(() => {
+                alert("오늘의 점심 데이터가 성공적으로 축적되었습니다! 대시보드 2번째 탭에서 확인해 보세요.");
+                updateState();
+            });
         }
 
         function toggleExclude(key) {
@@ -345,14 +426,9 @@
         
         function submitOrder() {
             if(!selected.user || !selected.menu) return alert("이름과 메인 메뉴를 선택해주세요!");
-            
-            // 🥤 선택한 개인 사이드 메뉴(체크박스) 수집
             let checkedSides = [];
             document.querySelectorAll('.pside-cb:checked').forEach(cb => {
-                checkedSides.push({
-                    name: cb.getAttribute('data-name'),
-                    price: Number(cb.getAttribute('data-price'))
-                });
+                checkedSides.push({ name: cb.getAttribute('data-name'), price: Number(cb.getAttribute('data-price')) });
             });
 
             localStorage.setItem('ordered_6.0', 'true');
@@ -361,12 +437,7 @@
             fetch(GAS_URL, { 
                 method: "POST", 
                 body: JSON.stringify({ 
-                    type: "MULTI_ORDER", 
-                    userName: selected.user, 
-                    restaurant: state.winner, 
-                    mainMenu: selected.menu, 
-                    mainPrice: selected.price,
-                    sides: checkedSides
+                    type: "MULTI_ORDER", userName: selected.user, restaurant: state.winner, mainMenu: selected.menu, mainPrice: selected.price, sides: checkedSides
                 }) 
             }).then(updateState);
         }
