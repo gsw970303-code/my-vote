@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v4.0</title>
+    <title>Lunch Pro v5.0</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -20,14 +20,13 @@
         .progress-bar { height: 100%; background: var(--primary); transition: 0.3s; width: 0%; }
         .lucky-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 8px 15px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; cursor: pointer; width: 100%; }
         .hidden { display: none; }
-        @keyframes slot-blink { 0% { background: #0f172a; } 50% { background: var(--primary); color: #0f172a; } 100% { background: #0f172a; } }
-        .slot-rolling { animation: slot-blink 0.1s infinite; }
         .admin-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; background: #0f172a; border-radius: 12px; overflow: hidden; }
         .admin-table th, .admin-table td { padding: 12px; border-bottom: 1px solid #334155; text-align: left; }
         .admin-table th { background: #334155; color: var(--primary); }
         .summary-card { background: rgba(0, 255, 136, 0.1); border: 1px solid var(--primary); padding: 15px; border-radius: 16px; margin-top: 15px; text-align: left; }
         .exclude-cb { transform: scale(1.2); cursor: pointer; }
         .excluded-row { text-decoration: line-through; color: #64748b !important; background: rgba(244, 63, 94, 0.05); }
+        .not-selected { color: #f43f5e; font-style: italic; }
     </style>
 </head>
 <body>
@@ -77,7 +76,8 @@
 
         <div id="adminDashboard" class="hidden">
             <div class="card" style="border: 1px solid var(--primary);">
-                <h3 style="color:var(--primary); margin-top:0;">📊 실시간 정산 (어드민)</h3>
+                <h3 style="color:var(--primary); margin-top:0; margin-bottom:5px;">📊 실시간 정산 (어드민)</h3>
+                <p id="adminPhoneInfo" style="font-size:14px; color:#94a3b8; margin:0 0 15px 0; font-weight:bold;"></p>
                 
                 <div id="sideMenuArea" class="hidden">
                     <p style="font-size:13px; color:var(--primary); text-align:left; font-weight:bold;">✨ 사이드 메뉴 일괄 추가 (중복 가능)</p>
@@ -91,14 +91,14 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbxGMGJqW2VkH1vfl4yt44Je1G1hRxlg02kaChjJshDNEkYmcPp-ONo2F4XQ5dyujs7f-g/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzzK5w8dMjHbjgkJskYCJifFezKP0JDREq7xBv1JQ764XojHN9RaGRcffa1CbJRatl17w/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
         
         let state = {};
         let selected = { res: null, user: null, menu: null, price: 0 };
-        let excludedUsers = new Set(); // 제외된 유저 저장용 프론트 로컬 캐시성 변수
+        let excludedUsers = new Set(); 
         let timerInterval;
 
         async function updateState() {
@@ -139,6 +139,7 @@
 
         function renderAdminDashboard() {
             document.getElementById('adminDashboard').classList.remove('hidden');
+            document.getElementById('adminPhoneInfo').innerHTML = `📱 식당 번호: <span style="color:#ffffff;">${state.phone || "미등록"}</span>`;
             
             const sideArea = document.getElementById('sideMenuArea');
             if(state.sideMenus && state.sideMenus.length > 0) {
@@ -148,71 +149,98 @@
                 }
             }
 
-            // [v4.0 로직] 계산 및 렌더링 동시 진행
+            // [v5.0 설계] Employees 명단을 기준으로 기본 구조를 잡음 (누락 방지)
             let listHtml = `<table class="admin-table"><tr><th>성함</th><th>메뉴</th><th>가격</th><th style="text-align:center;">제외</th></tr>`;
             
             let currentTotalCount = 0;
             let currentTotalPrice = 0;
             let currentMenuStats = {};
 
-            state.orderData.forEach((order, idx) => {
-                const isSide = order.name.includes("[사이드]");
-                const uniqueKey = isSide ? `side_${idx}` : order.name; // 사이드는 인덱스로, 직원은 이름으로 구분
-                const isExcluded = excludedUsers.has(uniqueKey);
-                
+            // 1. 일반 직원 매핑 처리
+            let orderMap = {};
+            state.orderData.forEach(order => {
+                if(!order.name.includes("[사이드]")) {
+                    orderMap[order.name] = order;
+                }
+            });
+
+            // Employees 전체 순회하며 뿌리기 (주문 안 한 사람도 자동 표기)
+            state.employees.forEach(empName => {
+                const order = orderMap[empName];
+                const isExcluded = excludedUsers.has(empName);
                 const rowClass = isExcluded ? 'class="excluded-row"' : '';
                 const checked = isExcluded ? 'checked' : '';
-                const displayName = isSide ? `<span style="color:#00ff88; font-weight:bold;">[사이드]</span>` : order.name;
+
+                let menuText = order ? order.menu : `<span class="not-selected">메뉴 미선택</span>`;
+                let priceText = order ? `${Number(order.price).toLocaleString()}원` : `0원`;
+                let priceNum = order ? Number(order.price) : 0;
 
                 listHtml += `<tr ${rowClass}>
-                    <td>${displayName}</td>
-                    <td>${order.menu}</td>
-                    <td>${Number(order.price).toLocaleString()}원</td>
-                    <td style="text-align:center;"><input type="checkbox" class="exclude-cb" ${checked} onchange="toggleExclude('${uniqueKey}', ${isSide})"></td>
+                    <td>${empName}</td>
+                    <td>${menuText}</td>
+                    <td>${priceText}</td>
+                    <td style="text-align:center;"><input type="checkbox" class="exclude-cb" ${checked} onchange="toggleExclude('${empName}')"></td>
                 </tr>`;
 
-                // 제외되지 않은 항목만 통계에 반영
                 if (!isExcluded) {
-                    if (!isSide) {
+                    if (order) {
                         currentMenuStats[order.menu] = (currentMenuStats[order.menu] || 0) + 1;
                         currentTotalCount++;
                     }
-                    currentTotalPrice += (Number(order.price) || 0);
+                    currentTotalPrice += priceNum;
                 }
             });
+
+            // 2. 사이드 메뉴 순회 처리 (리스트 하단에 누적 배치)
+            state.orderData.forEach((order, idx) => {
+                if (order.name.includes("[사이드]")) {
+                    const uniqueKey = `side_${idx}`;
+                    const isExcluded = excludedUsers.has(uniqueKey);
+                    const rowClass = isExcluded ? 'class="excluded-row"' : '';
+                    const checked = isExcluded ? 'checked' : '';
+
+                    listHtml += `<tr ${rowClass}>
+                        <td><span style="color:#00ff88; font-weight:bold;">[사이드]</span></td>
+                        <td>${order.menu}</td>
+                        <td>${Number(order.price).toLocaleString()}원</td>
+                        <td style="text-align:center;"><input type="checkbox" class="exclude-cb" ${checked} onchange="toggleExclude('${uniqueKey}')"></td>
+                    </tr>`;
+
+                    if (!isExcluded) {
+                        // [v5.0 피드백] 사이드 메뉴도 메뉴별 합계 통계에 함께 반영!
+                        currentMenuStats[order.menu] = (currentMenuStats[order.menu] || 0) + 1;
+                        currentTotalPrice += Number(order.price);
+                    }
+                }
+            });
+
             listHtml += `</table>`;
             document.getElementById('adminOrderList').innerHTML = listHtml;
 
-            // 요약 화면 출력
-            let summaryHtml = `<strong>📋 메뉴별 합계 (제외자 미포함)</strong><br>`;
+            // 요약 결과 출력
+            let summaryHtml = `<strong>📋 전체 메뉴별 합계 (사이드 포함 / 제외자 미포함)</strong><br>`;
             let statCount = 0;
             for (const [menu, count] of Object.entries(currentMenuStats)) {
-                summaryHtml += `- ${menu}: ${count}명<br>`;
+                summaryHtml += `- ${menu}: ${count}개<br>`;
                 statCount++;
             }
             if(statCount === 0) summaryHtml += `<span style="color:#64748b;">주문 내역이 없습니다.</span><br>`;
             
             summaryHtml += `<hr style="border-color:var(--primary); margin:10px 0;">`;
-            summaryHtml += `<strong>💰 실제 정산 인원: ${currentTotalCount}명 / 최종 합계: ${Number(currentTotalPrice).toLocaleString()}원</strong>`;
+            summaryHtml += `<strong>💰 실제 결제 인원: ${currentTotalCount}명 / 최종 정산 합계: ${Number(currentTotalPrice).toLocaleString()}원</strong>`;
             document.getElementById('adminSummary').innerHTML = summaryHtml;
         }
 
-        function toggleExclude(key, isSide) {
-            if (excludedUsers.has(key)) {
-                excludedUsers.delete(key);
-            } else {
-                excludedUsers.add(key);
-            }
-            renderAdminDashboard(); // 화면 즉시 새로고침하여 계산 결과 반영
+        function toggleExclude(key) {
+            if (excludedUsers.has(key)) { excludedUsers.delete(key); } 
+            else { excludedUsers.add(key); }
+            renderAdminDashboard();
         }
 
         function selectSide(obj) {
-            // [v4.0 개선] 이름 자체를 깔끔하게 '[사이드]'로 전달하여 중복 등록 가능하게 변경
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ 
                 type: "ORDER", userName: `[사이드] ${obj.name}`, restaurant: state.winner, menu: obj.name, price: obj.price 
-            }) }).then(() => {
-                updateState();
-            });
+            }) }).then(updateState);
         }
 
         function renderGrid(containerId, data, callback, isMenu = false) {
