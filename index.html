@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.5</title>
+    <title>Lunch Pro v3.7</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -28,12 +28,18 @@
         }
         .slot-rolling { animation: slot-blink 0.1s infinite; }
 
-        /* 어드민 대시보드 스타일 */
+        /* 어드민 대시보드 및 실시간 TOP 3 통계 스타일 */
         .admin-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; background: #0f172a; border-radius: 12px; overflow: hidden; }
         .admin-table th, .admin-table td { padding: 12px; border-bottom: 1px solid #334155; text-align: left; }
         .admin-table th { background: #334155; color: var(--primary); }
         .summary-card { background: rgba(0, 255, 136, 0.1); border: 1px solid var(--primary); padding: 15px; border-radius: 16px; margin-top: 15px; text-align: left; }
         #errorMessage { color: var(--accent); background: rgba(244, 63, 94, 0.1); padding: 10px; border-radius: 8px; margin-top: 20px; font-size: 14px; }
+        
+        /* 실시간 통계 차트용 추가 */
+        .stat-row { margin-bottom: 12px; }
+        .stat-info { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px; text-align: left; }
+        .stat-progress { background: #334155; height: 8px; border-radius: 4px; overflow: hidden; }
+        .stat-bar { height: 100%; background: var(--primary); transition: 0.5s; width: 0%; }
     </style>
 </head>
 <body>
@@ -41,13 +47,11 @@
         <div id="loading">⚡ 데이터 동기화 중...</div>
         <div id="errorMessage" class="hidden"></div>
 
-        <!-- 관리자 섹션 -->
         <div id="adminSection" class="hidden" style="background:#334155; padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed var(--primary);">
             <h3 style="margin:0 0 10px 0; font-size:16px;">🛠 관리자 메뉴</h3>
             <button class="btn-main" onclick="startSystem()">점심 투표 시작 (데이터 초기화)</button>
         </div>
 
-        <!-- 0. 대기 화면 -->
         <div id="waitingSection" class="hidden">
             <div class="card">
                 <h2>😴 대기 중</h2>
@@ -55,7 +59,6 @@
             </div>
         </div>
 
-        <!-- 1. 투표 화면 -->
         <div id="votingSection" class="hidden">
             <div class="card">
                 <h2>🍴 식당 투표</h2>
@@ -67,7 +70,6 @@
             </div>
         </div>
 
-        <!-- 2. 주문 화면 -->
         <div id="orderingSection" class="hidden">
             <div class="card">
                 <h2 id="winnerTitle" style="color:var(--primary)">🏆 오늘의 식당</h2>
@@ -78,17 +80,23 @@
                     <div class="grid" id="menuGrid"></div>
                     <button class="btn-main" id="submitBtn" onclick="submitOrder()" style="margin-top:20px;">주문 제출하기</button>
                 </div>
+                
                 <div id="orderedMsg" class="hidden">
                     <div style="background:rgba(0,255,136,0.1); padding:15px; border-radius:12px; margin-bottom:15px;">
-                        <b style="color:var(--primary)">주문 완료!</b><br>
-                        <span style="font-size:14px;">메뉴 변경 시 <b>구수완 사원</b>에게 메신저 부탁드립니다.</span>
+                        <b style="color:var(--primary); font-size:18px;">주문 완료!</b><br>
+                        <span style="font-size:14px; color:#94a3b8;">메뉴 변경 시 <b>구수완 사원</b>에게 메신저 부탁드립니다.</span>
                     </div>
+                    
+                    <div style="background:#0f172a; padding:15px; border-radius:16px; text-align:left; margin-bottom:15px; border:1px solid #334155;">
+                        <h4 style="margin:0 0 12px 0; color:var(--primary); font-size:14px;">🔥 실시간 인기 메뉴 TOP 3</h4>
+                        <div id="statsList"></div>
+                    </div>
+
                     <button onclick="reOrder()" style="color:#94a3b8; background:none; border:none; text-decoration:underline; cursor:pointer;">메뉴 다시 고르기</button>
                 </div>
             </div>
         </div>
 
-        <!-- 3. 관리자 실시간 대시보드 -->
         <div id="adminDashboard" class="hidden">
             <div class="card" style="border: 1px solid var(--primary); padding: 20px;">
                 <h3 style="color:var(--primary); margin-top:0;">📊 실시간 주문 현황 (어드민 전용)</h3>
@@ -99,7 +107,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbxJvfFKVfSJXkYb3MtXGCwAeBgmix0Mbi-Uw0Ih3ojOZqRDJYADeQ_ovUFeKne08UGNHA/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbz7DmCjev5AjViKS_8qIKoaYUaTDn_SS-sPx9LMt7B5MaHbz-MIztNgOEms2cGnYXvSXg/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -147,6 +155,7 @@
                 }
                 const isOrdered = localStorage.getItem('ordered_3.1');
                 setFormDisabled(!!isOrdered);
+                if(isOrdered) renderStats(); // 💡 일반 직원들에게도 실시간 인기 탑3 출력
             }
         }
 
@@ -191,6 +200,36 @@
             }, 100);
         }
 
+        // 📊 일반 직원 화면용 실시간 TOP 3 차트 생성 함수
+        function renderStats() {
+            const list = document.getElementById('statsList');
+            if(!list) return;
+            list.innerHTML = '';
+            
+            // 정렬 후 상위 3개 추출
+            const sorted = Object.entries(state.menuStats || {}).sort((a,b) => b[1] - a[1]).slice(0, 3);
+            const max = sorted.length ? Math.max(...sorted.map(s => s[1])) : 1;
+            
+            if(sorted.length === 0) {
+                list.innerHTML = '<div style="color:#94a3b8; font-size:13px;">아직 주문 내역이 없습니다.</div>';
+                return;
+            }
+
+            sorted.forEach(([name, count]) => {
+                const width = (count / max) * 100;
+                list.innerHTML += `
+                    <div class="stat-row">
+                        <div class="stat-info">
+                            <span>${name}</span>
+                            <span style="color:var(--primary); font-weight:bold;">${count}명</span>
+                        </div>
+                        <div class="stat-progress">
+                            <div class="stat-bar" style="width:${width}%;"></div>
+                        </div>
+                    </div>`;
+            });
+        }
+
         function renderAdminDashboard() {
             const dash = document.getElementById('adminDashboard');
             dash.classList.remove('hidden');
@@ -203,7 +242,7 @@
             listHtml += `</table>`;
             document.getElementById('adminOrderList').innerHTML = listHtml;
 
-            let summaryHtml = `<strong>📋 메뉴별 합계</strong><br>`;
+            let summaryHtml = `<strong>📋 메뉴별 전체 합계</strong><br>`;
             for (const [menu, count] of Object.entries(state.menuStats || {})) {
                 summaryHtml += `- ${menu}: ${count}명<br>`;
             }
@@ -239,9 +278,10 @@
                 type: "ORDER", userName: selected.user, restaurant: state.winner, menu: selected.menu, price: selected.price 
             }) }).then(updateState);
         }
-        function reOrder() { localStorage.removeItem('ordered_3.1'); setFormDisabled(false); }
+        function reOrder() { localStorage.removeItem('ordered_3.1'); setFormDisabled(false); updateState(); }
         function setFormDisabled(disabled) {
             document.getElementById('formContainer').classList.toggle('hidden', disabled);
+            document.getElementById('orderedMsg').classList.toggle('toggle', !disabled);
             document.getElementById('orderedMsg').classList.toggle('hidden', !disabled);
         }
 
