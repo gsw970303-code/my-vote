@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v8.0</title>
+    <title>Lunch Pro v9.0</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -14,7 +14,8 @@
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
         .item { background: #0f172a; padding: 18px; border-radius: 16px; border: 2px solid #334155; cursor: pointer; transition: 0.1s; position: relative; }
         .item.active { background: var(--primary); color: #0f172a; font-weight: bold; border-color: var(--primary); }
-        .btn-main { width: 100%; padding: 20px; background: var(--primary); color: #0f172a; border: none; border-radius: 16px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        .btn-main { width: 100%; padding: 16px; background: var(--primary); color: #0f172a; border: none; border-radius: 16px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-sub { width: 100%; padding: 10px; background: #334155; color: white; border: 1px solid #475569; border-radius: 10px; font-size: 13px; font-weight: bold; cursor: pointer; margin-bottom: 12px; }
         .progress-container { width: 100%; background: #334155; height: 8px; border-radius: 4px; margin-top: 10px; overflow: hidden; }
         .progress-bar { height: 100%; background: var(--primary); transition: 0.3s; width: 0%; }
         .lucky-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 8px 15px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; cursor: pointer; width: 100%; }
@@ -32,6 +33,7 @@
         .admin-navbar { display: flex; background: #0f172a; border-radius: 16px; padding: 5px; margin-bottom: 15px; border: 1px solid #334155; }
         .admin-nav-item { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; }
         .admin-nav-item.active { background: var(--primary); color: #0f172a; }
+        .badge-recent { position: absolute; top: 5px; right: 5px; background: #fba51a; color: #0f172a; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -40,7 +42,8 @@
 
         <div id="adminStartSection" class="hidden" style="background:#334155; padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed var(--primary);">
             <h3 style="margin:0 0 10px 0; font-size:16px;">🛠 관리자 빠른 제어</h3>
-            <button class="btn-main" onclick="startSystem()">점심 투표 시작 (데이터 초기화)</button>
+            <button class="btn-sub" onclick="copyLaunchNotice()">📋 [1단계] 투표 안내 쪽지 공지문 복사</button>
+            <button class="btn-main" onclick="startSystem()">🚀 [2단계] 점심 투표 시작 (데이터 초기화)</button>
         </div>
 
         <div id="waitingSection" class="hidden">
@@ -67,6 +70,13 @@
                     <button id="randomBtn" class="lucky-btn" onclick="randomMenuSlot()">🎲 결정 장애? 슬롯머신!</button>
                     <div class="grid" id="menuGrid"></div>
                     
+                    <div id="doubleSizeArea" class="pside-container hidden" style="border-color: var(--primary);">
+                        <label style="display:flex; align-items:center; cursor:pointer; font-weight:bold; color:var(--primary);">
+                            <input type="checkbox" id="doubleSizeCb" style="transform:scale(1.4); margin-right:10px;" onchange="calcDoublePrice()"> 
+                            🍜 곱빼기로 변경 (<span id="doublePriceText">0</span>원 추가)
+                        </label>
+                    </div>
+
                     <div id="personalSideArea" class="pside-container hidden">
                         <span style="font-size:13px; color:var(--primary); font-weight:bold;">🥤 추가 선택 (선택 사항)</span>
                         <div id="personalSideList" style="margin-top:8px;"></div>
@@ -77,7 +87,7 @@
                 <div id="orderedMsg" class="hidden">
                     <div style="background:rgba(0,255,136,0.1); padding:15px; border-radius:12px; margin-bottom:15px;">
                         <b style="color:var(--primary)">주문 완료!</b><br>
-                        <span style="font-size:13px; color:#94a3b8;">메뉴 변경 시 메신저 부탁드립니다.</span>
+                        <span style="font-size:13px; color:#94a3b8;">메뉴 변경 시 구수완 사원에게 메신저 부탁드립니다.</span>
                     </div>
                     <button onclick="reOrder()" style="color:#94a3b8; background:none; border:none; text-decoration:underline; cursor:pointer;">메뉴 다시 고르기</button>
                 </div>
@@ -91,6 +101,9 @@
             </div>
 
             <div id="adminTabContent1" class="card" style="border: 1px solid var(--primary); padding: 20px;">
+                <button class="btn-sub" onclick="copyRecallNotice()">🚨 미입력자 소환 메신저 문구 복사</button>
+                <button class="btn-sub" id="btnCopyScript" onclick="copyOrderScript()" style="background:#0284c7; border-color:#0369a1; display:none;">📞 식당 주방 이모님 주문 대본 복사</button>
+                
                 <div id="sideMenuArea" class="hidden">
                     <p style="font-size:13px; color:var(--primary); text-align:left; font-weight:bold;">✨ 사이드 메뉴 일괄 추가</p>
                     <div class="grid" id="sideGrid" style="margin-bottom:20px;"></div>
@@ -102,20 +115,20 @@
             </div>
 
             <div id="adminTabContent2" class="card hidden" style="border: 1px solid #475569; padding: 20px; text-align:left;">
-                <h3 style="color:var(--primary); margin-top:0;">📈 팀 선호도 가시화</h3>
+                <h3 style="color:var(--primary); margin-top:0;">📈 팀 선호도 및 지출 통계</h3>
                 <div id="analyticsContent" style="font-size:14px; line-height:1.8; color:#e2e8f0;">데이터 집계 중...</div>
             </div>
         </div>
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwhMC9IxPQa9wHabj3yMadQOIot2wslI5d6NTPQjAT-j7oSnkjlj_BsGWXx6uIW0DfKJA/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbyOXqTfqKQpE6pJAoAeUefS3MydNKaje3T_4YMOM3iyoEpCf0YoVNzuWN81syia6TNvXA/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
         
         let state = {};
-        let selected = { res: null, user: null, menu: null, price: 0 };
+        let selected = { res: null, user: null, menu: null, price: 0, rawMenuName: null, doubleFee: 0 };
         let excludedUsers = new Set(); 
         let timerInterval;
         let activeAdminTab = 1;
@@ -130,6 +143,57 @@
                     renderAnalytics();
                 }
             } catch (e) {}
+        }
+
+        // 📋 [v9.0] 1. 최초 메신저 배포용 쪽지 양식 자동 생성
+        function copyLaunchNotice() {
+            const dateStr = state.sysDate || `${new Date().getMonth()+1}.${new Date().getDate()}`;
+            const link = window.location.href.split('?')[0];
+            const text = `${dateStr} 회계팀 점심 투표의 건\n\n안녕하십니까 회계팀 구수완입니다!\n\n금일 점심 투표를 진행하고자 하오니 아래 링크를 클릭하시어\n투표 및 메뉴 선택을 진행해주시기 바랍니다!\n\n링크: ${link}\n\n감사합니다.\n구수완 올림`;
+            navigator.clipboard.writeText(text);
+            alert("📋 투표 시작 안내 문구가 클립보드에 복사되었습니다. 사내 메신저에 바로 붙여넣기(Ctrl+V) 하세요!");
+        }
+
+        // 🚨 [v9.0] 2. 미선택자 리콜 문구 복사
+        function copyRecallNotice() {
+            let unselectedUsers = [];
+            let userOrdersMap = {};
+            state.orderData.forEach(o => { if(!o.name.includes("[사이드]")) userOrdersMap[o.name] = true; });
+            state.employees.forEach(emp => {
+                if(!excludedUsers.has(emp) && !userOrdersMap[emp]) unselectedUsers.push(emp);
+            });
+            if(unselectedUsers.length === 0) return alert("✅ 미선택자가 없습니다! 모든 인원이 완벽하게 입력했습니다.");
+            const text = `🔔 오늘 점심 주문 미입력자 안내: [ ${unselectedUsers.join(', ')} ] 님은 마감 전이니 얼른 대시보드에서 메뉴를 선택해 주세요!`;
+            navigator.clipboard.writeText(text);
+            alert("📋 미선택자 리콜 문구가 클립보드에 복사되었습니다!");
+        }
+
+        // 📞 [v9.0] 3. 식당 전화 주문용 스크립트 대본 생성
+        function copyOrderScript() {
+            let menuStats = {};
+            let userOrdersMap = {};
+            state.orderData.forEach(o => {
+                if(!o.name.includes("[사이드]")) {
+                    if(!userOrdersMap[o.name]) userOrdersMap[o.name] = [];
+                    userOrdersMap[o.name].push(o);
+                }
+            });
+            state.employees.forEach(emp => {
+                if (!excludedUsers.has(emp) && userOrdersMap[emp]) {
+                    userOrdersMap[emp].forEach(o => { menuStats[o.menu] = (menuStats[o.menu] || 0) + 1; });
+                }
+            });
+            state.orderData.forEach((order, idx) => {
+                if (order.name.includes("[사이드]") && !excludedUsers.has(`side_${idx}`)) {
+                    menuStats[order.menu] = (menuStats[order.menu] || 0) + 1;
+                }
+            });
+
+            let scriptArr = [];
+            for (const [menu, count] of Object.entries(menuStats)) { scriptArr.push(`${menu} ${count}개`); }
+            const text = `안녕하세요, ${state.winner}죠? 주문 좀 드릴게요.\n\n${scriptArr.join(', ')} 보내주세요.`;
+            navigator.clipboard.writeText(text);
+            alert("📞 주방 이모님 전달용 대본이 복사되었습니다! 그대로 읽거나 붙여넣으시면 됩니다.");
         }
 
         function renderUI() {
@@ -155,8 +219,11 @@
                 
                 const isOrdered = localStorage.getItem('ordered_6.0');
                 if(!document.getElementById('userGrid').children.length) {
-                    renderGrid('userGrid', state.employees, (v) => selected.user = v);
-                    renderGrid('menuGrid', state.menus, (obj) => { selected.menu = obj.name; selected.price = obj.price; }, true);
+                    renderGrid('userGrid', state.employees, (v) => {
+                        selected.user = v;
+                        highlightRecentMenu(); // 이름 선택 시 최근 메뉴 강조
+                    });
+                    renderGrid('menuGrid', state.menus, (obj) => selectMainMenu(obj), true);
                     
                     const pSideArea = document.getElementById('personalSideArea');
                     const pSideList = document.getElementById('personalSideList');
@@ -176,6 +243,56 @@
             }
         }
 
+        // 🌟 [v9.0] 즐겨찾기: 최근 선택했던 메뉴 표시
+        function highlightRecentMenu() {
+            if(!selected.user || !state.historyData) return;
+            const myHistory = state.historyData.filter(h => h.name === selected.user && h.restaurant === state.winner);
+            document.querySelectorAll('#menuGrid .item').forEach(el => {
+                const badge = el.querySelector('.badge-recent');
+                if(badge) badge.remove();
+                
+                if(myHistory.length > 0) {
+                    const cleanItemName = el.innerText.split('\n')[0].replace(/\(곱빼기 가능:.*\)/g, '').trim();
+                    const cleanHistoryName = myHistory[myHistory.length - 1].menu.replace(' (곱빼기)', '').replace(/\(곱빼기 가능:.*\)/g, '').trim();
+                    if(cleanItemName === cleanHistoryName) {
+                        el.innerHTML += `<span class="badge-recent">늘 먹던 것 ⭐</span>`;
+                    }
+                }
+            });
+        }
+
+        // 🍜 [v9.0] 메인 메뉴 클릭 및 곱빼기 판단 로직
+        function selectMainMenu(obj) {
+            selected.rawMenuName = obj.name;
+            selected.price = Number(obj.price);
+            
+            const doubleArea = document.getElementById('doubleSizeArea');
+            const doubleCb = document.getElementById('doubleSizeCb');
+            doubleCb.checked = false;
+            selected.doubleFee = 0;
+
+            // 메뉴명에 '곱빼기 가능:금액'이 정규식으로 들어있는지 체크
+            const match = obj.name.match(/\(곱빼기 가능:(\d+)\)/);
+            if(match) {
+                selected.doubleFee = Number(match[1]);
+                document.getElementById('doublePriceText').innerText = selected.doubleFee.toLocaleString();
+                doubleArea.classList.remove('hidden');
+            } else {
+                doubleArea.classList.add('hidden');
+            }
+            selected.menu = obj.name.replace(/\(곱빼기 가능:.*\)/g, '').trim();
+        }
+
+        function calcDoublePrice() {
+            const doubleCb = document.getElementById('doubleSizeCb');
+            if(doubleCb.checked) {
+                // 곱빼기 선택 시 원래 메뉴명 뒤에 표기 붙임
+                selected.menu = selected.rawMenuName.replace(/\(곱빼기 가능:.*\)/g, '').trim() + " (곱빼기)";
+            } else {
+                selected.menu = selected.rawMenuName.replace(/\(곱빼기 가능:.*\)/g, '').trim();
+            }
+        }
+
         function switchAdminTab(tabNum) {
             activeAdminTab = tabNum;
             document.getElementById('tabBtn1').classList.toggle('active', tabNum === 1);
@@ -186,6 +303,7 @@
 
         function renderAdminDashboard() {
             document.getElementById('adminDashboard').classList.remove('hidden');
+            document.getElementById('btnCopyScript').style.display = 'block';
             const sideArea = document.getElementById('sideMenuArea');
             if(state.sideMenus && state.sideMenus.length > 0) {
                 sideArea.classList.remove('hidden');
@@ -270,10 +388,8 @@
             document.getElementById('adminOrderList').innerHTML = listHtml;
 
             let currentEatingCount = totalEmployeesCount - currentExcludedCount;
-            let summaryHtml = `<strong>📋 전체 메뉴별 취합 (사이드 포함 / 제외자 미포함)</strong><br>`;
-            for (const [menu, count] of Object.entries(currentMenuStats)) {
-                summaryHtml += `- ${menu}: ${count}개<br>`;
-            }
+            let summaryHtml = `<strong>📋 전체 메뉴별 취합 (제외자 미포함)</strong><br>`;
+            for (const [menu, count] of Object.entries(currentMenuStats)) { summaryHtml += `- ${menu}: ${count}개<br>`; }
             
             summaryHtml += `<hr style="border-color:var(--primary); margin:10px 0;">`;
             summaryHtml += `<strong>💰 실제 결제 인원: ${currentEatingCount}명 (전체 ${totalEmployeesCount}명 중 ${currentExcludedCount}명 제외)</strong><br>`;
@@ -284,49 +400,60 @@
             document.getElementById('adminSummary').innerHTML = summaryHtml;
         }
 
-        // 💡 [v8.0 개편] 횟수 카운트 시 중복 날짜를 제거하여 유니크 방문 날짜수만 계산
+        // 📊 [v9.0] 지출 비용 및 정산 장부 통계 고도화
         function renderAnalytics() {
             if(!state.historyData || state.historyData.length === 0) {
                 document.getElementById('analyticsContent').innerHTML = `<span style="color:#64748b;">아직 누적된 데이터가 없습니다. 하단의 확정 버튼을 눌러 데이터를 쌓아보세요!</span>`;
                 return;
             }
 
-            let resDatesMap = {}; // 식당별 방문한 날짜의 Set을 저장할 객체
+            let resDatesMap = {}; 
             let menuCounts = {};
+            let personalSpending = {}; // 인당 지출 총액
+            let totalAllSpending = 0;
             
             state.historyData.forEach(h => {
                 if(!resDatesMap[h.restaurant]) resDatesMap[h.restaurant] = new Set();
-                resDatesMap[h.restaurant].add(h.date); // 동일 날짜는 Set에 의해 하나만 들어감
+                resDatesMap[h.restaurant].add(h.date);
                 
                 menuCounts[h.menu] = (menuCounts[h.menu] || 0) + 1;
+                
+                if(h.name && !h.name.includes("[사이드]")) {
+                    personalSpending[h.name] = (personalSpending[h.name] || 0) + Number(h.price);
+                    totalAllSpending += Number(h.price);
+                }
             });
 
             let resCounts = {};
-            for (const [res, dateSet] of Object.entries(resDatesMap)) {
-                resCounts[res] = dateSet.size; // 식당별 유니크 날짜 수가 곧 실제 방문 횟수
-            }
+            for (const [res, dateSet] of Object.entries(resDatesMap)) { resCounts[res] = dateSet.size; }
 
             let topRes = Object.entries(resCounts).sort((a,b) => b[1]-a[1]).slice(0, 3);
             let topMenu = Object.entries(menuCounts).sort((a,b) => b[1]-a[1]).slice(0, 3);
+            let gourmand = Object.entries(personalSpending).sort((a,b) => b[1]-a[1]).slice(0, 1);
 
             let html = `🥇 <strong>가장 자주 간 식당 TOP 3</strong><br>`;
             topRes.forEach((r, i) => { html += `${i+1}등. ${r[0]} (${r[1]}회 방문)<br>`; });
             
             html += `<hr style="border-color:#334155; margin:10px 0;">`;
             html += `🔥 <strong>팀원들이 사랑한 최애 메뉴 TOP 3</strong><br>`;
-            topMenu.forEach((m, i) => { html += `${i+1}등. ${m[0].replace('(개인사이드)','')} (${m[1]}번 주문)<br>`; });
+            topMenu.forEach((m, i) => { html += `${i+1}등. ${m[0]} (${m[1]}번 주문)<br>`; });
 
             html += `<hr style="border-color:#334155; margin:10px 0;">`;
-            html += `<span style="font-size:11px; color:#94a3b8;">* 총 ${Object.keys(resCounts).reduce((a,b)=>a+resCounts[b],0)}일 간의 확정 데이터 기반 분석 완료</span>`;
+            html += `💰 <strong>회계팀 점심 누적 지출 통계</strong><br>`;
+            html += `- 누적 전체 점심값 지출: <span style="color:var(--primary); font-weight:bold;">${totalAllSpending.toLocaleString()}원</span><br>`;
+            if(gourmand.length > 0) {
+                html += `- 누적 지출 1위 (미식가): <span style="color:#fba51a; font-weight:bold;">${gourmand[0][0]}님</span> (${gourmand[0][1].toLocaleString()}원)<br>`;
+            }
+
+            html += `<hr style="border-color:#334155; margin:10px 0;">`;
+            html += `<span style="font-size:11px; color:#94a3b8;">* 총 ${Object.keys(resCounts).reduce((a,b)=>a+resCounts[b],0)}일 간의 유니크 확정 데이터 분석 완료</span>`;
             
             document.getElementById('analyticsContent').innerHTML = html;
         }
 
-        // 💾 최종 확정 버튼 액션 (v8.0 미선택 방어망 장착)
         function saveTodayHistory() {
             let recordsToSave = [];
-            let unselectedUsers = []; // 메뉴 누락 인원 리스트 체크용
-            
+            let unselectedUsers = []; 
             let userOrdersMap = {};
             state.orderData.forEach(order => {
                 if(!order.name.includes("[사이드]")) {
@@ -339,19 +466,12 @@
                 const isExcluded = excludedUsers.has(empName);
                 const hasOrdered = userOrdersMap[empName] && userOrdersMap[empName].length > 0;
                 
-                // 💡 [v8.0 핵심] 메뉴도 안 골랐고 제외 체크도 안 한 누락자 색출
-                if (!isExcluded && !hasOrdered) {
-                    unselectedUsers.push(empName);
-                }
-
+                if (!isExcluded && !hasOrdered) unselectedUsers.push(empName);
                 if (!isExcluded && hasOrdered) {
-                    userOrdersMap[empName].forEach(o => {
-                        recordsToSave.push({ name: empName, menu: o.menu, price: o.price });
-                    });
+                    userOrdersMap[empName].forEach(o => { recordsToSave.push({ name: empName, menu: o.menu, price: o.price }); });
                 }
             });
 
-            // 누락자가 발견되면 경고창을 띄우고 중단시킴
             if (unselectedUsers.length > 0) {
                 alert(`⚠️ 아직 메뉴를 선택하지 않았거나 제외 처리가 되지 않은 팀원이 있습니다.\n\n대상자: [ ${unselectedUsers.join(', ')} ]\n\n명단을 모두 확인하거나 제외 체크 후 다시 시도해 주세요!`);
                 return;
@@ -367,11 +487,7 @@
 
             fetch(GAS_URL, {
                 method: "POST",
-                body: JSON.stringify({
-                    type: "ADMIN_SAVE_HISTORY",
-                    restaurant: state.winner,
-                    records: recordsToSave
-                })
+                body: JSON.stringify({ type: "ADMIN_SAVE_HISTORY", restaurant: state.winner, records: recordsToSave })
             }).then(() => {
                 alert("오늘의 점심 최종 내역이 덮어쓰기 완료되어 깨끗하게 저장되었습니다!");
                 updateState();
@@ -396,7 +512,8 @@
             data.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'item';
-                div.innerText = isMenu ? `${item.name}\n${item.price.toLocaleString()}원` : item;
+                // 화면 표시용 이름 클렌징
+                div.innerText = isMenu ? `${item.name.replace(/\(곱빼기 가능:.*\)/g, '').trim()}\n${Number(item.price).toLocaleString()}원` : item;
                 div.onclick = () => {
                     container.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
                     div.classList.add('active');
@@ -453,10 +570,15 @@
             localStorage.setItem('ordered_6.0', 'true');
             setFormDisabled(true);
 
+            // 곱빼기 체크 여부에 따른 최종 가격 산정
+            let finalMainPrice = selected.price;
+            const doubleCb = document.getElementById('doubleSizeCb');
+            if(doubleCb && doubleCb.checked) { finalMainPrice += selected.doubleFee; }
+
             fetch(GAS_URL, { 
                 method: "POST", 
                 body: JSON.stringify({ 
-                    type: "MULTI_ORDER", userName: selected.user, restaurant: state.winner, mainMenu: selected.menu, mainPrice: selected.price, sides: checkedSides
+                    type: "MULTI_ORDER", userName: selected.user, restaurant: state.winner, mainMenu: selected.menu, mainPrice: finalMainPrice, sides: checkedSides
                 }) 
             }).then(updateState);
         }
