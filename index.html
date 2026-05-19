@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.7</title>
+    <title>Lunch Pro v3.8</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -19,23 +19,12 @@
         .progress-bar { height: 100%; background: var(--primary); transition: 0.3s; width: 0%; }
         .lucky-btn { background: #334155; color: #94a3b8; border: 1px solid #475569; padding: 8px 15px; border-radius: 20px; font-size: 12px; margin-bottom: 15px; cursor: pointer; width: 100%; }
         .hidden { display: none; }
-        
-        /* 슬롯머신 효과용 애니메이션 */
-        @keyframes slot-blink {
-            0% { background: #0f172a; border-color: #334155; }
-            50% { background: var(--primary); border-color: var(--primary); color: #0f172a; }
-            100% { background: #0f172a; border-color: #334155; }
-        }
+        @keyframes slot-blink { 0% { background: #0f172a; } 50% { background: var(--primary); color: #0f172a; } 100% { background: #0f172a; } }
         .slot-rolling { animation: slot-blink 0.1s infinite; }
-
-        /* 어드민 대시보드 및 실시간 TOP 3 통계 스타일 */
         .admin-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; background: #0f172a; border-radius: 12px; overflow: hidden; }
         .admin-table th, .admin-table td { padding: 12px; border-bottom: 1px solid #334155; text-align: left; }
         .admin-table th { background: #334155; color: var(--primary); }
         .summary-card { background: rgba(0, 255, 136, 0.1); border: 1px solid var(--primary); padding: 15px; border-radius: 16px; margin-top: 15px; text-align: left; }
-        #errorMessage { color: var(--accent); background: rgba(244, 63, 94, 0.1); padding: 10px; border-radius: 8px; margin-top: 20px; font-size: 14px; }
-        
-        /* 실시간 통계 차트용 추가 */
         .stat-row { margin-bottom: 12px; }
         .stat-info { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 5px; text-align: left; }
         .stat-progress { background: #334155; height: 8px; border-radius: 4px; overflow: hidden; }
@@ -45,25 +34,20 @@
 <body>
     <div class="container">
         <div id="loading">⚡ 데이터 동기화 중...</div>
-        <div id="errorMessage" class="hidden"></div>
 
-        <div id="adminSection" class="hidden" style="background:#334155; padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed var(--primary);">
+        <div id="adminStartSection" class="hidden" style="background:#334155; padding:15px; border-radius:12px; margin-bottom:20px; border:1px dashed var(--primary);">
             <h3 style="margin:0 0 10px 0; font-size:16px;">🛠 관리자 메뉴</h3>
             <button class="btn-main" onclick="startSystem()">점심 투표 시작 (데이터 초기화)</button>
         </div>
 
         <div id="waitingSection" class="hidden">
-            <div class="card">
-                <h2>😴 대기 중</h2>
-                <p style="color:#94a3b8;">관리자가 아직 투표를 시작하지 않았습니다.<br>잠시만 기다려 주세요!</p>
-            </div>
+            <div class="card"><h2>😴 대기 중</h2><p style="color:#94a3b8;">관리자가 투표를 시작하면 활성화됩니다.</p></div>
         </div>
 
         <div id="votingSection" class="hidden">
             <div class="card">
                 <h2>🍴 식당 투표</h2>
                 <div class="timer" id="voteTimer">00:00</div>
-                <div class="guide-text">식당 변경은 시간 내 가능하며 마지막 선택이 반영됩니다.</div>
                 <div class="progress-container"><div id="voteProgress" class="progress-bar"></div></div>
                 <p id="voteCountText" style="font-size:12px; color:var(--primary); margin-top:5px;"></p>
                 <div class="grid" id="resGrid"></div>
@@ -76,30 +60,33 @@
                 <div id="formContainer">
                     <div class="grid" id="userGrid"></div>
                     <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
-                    <button id="randomBtn" class="lucky-btn" onclick="randomMenuSlot()">🎲 메뉴 결정 장애? 슬롯머신 돌리기!</button>
+                    <button id="randomBtn" class="lucky-btn" onclick="randomMenuSlot()">🎲 결정 장애? 슬롯머신!</button>
                     <div class="grid" id="menuGrid"></div>
                     <button class="btn-main" id="submitBtn" onclick="submitOrder()" style="margin-top:20px;">주문 제출하기</button>
                 </div>
-                
                 <div id="orderedMsg" class="hidden">
                     <div style="background:rgba(0,255,136,0.1); padding:15px; border-radius:12px; margin-bottom:15px;">
-                        <b style="color:var(--primary); font-size:18px;">주문 완료!</b><br>
-                        <span style="font-size:14px; color:#94a3b8;">메뉴 변경 시 <b>구수완 사원</b>에게 메신저 부탁드립니다.</span>
+                        <b style="color:var(--primary)">주문 완료!</b><br>
+                        <span style="font-size:13px; color:#94a3b8;">메뉴 변경 시 <b>구수완 사원</b>에게 메신저 부탁드립니다.</span>
                     </div>
-                    
                     <div style="background:#0f172a; padding:15px; border-radius:16px; text-align:left; margin-bottom:15px; border:1px solid #334155;">
                         <h4 style="margin:0 0 12px 0; color:var(--primary); font-size:14px;">🔥 실시간 인기 메뉴 TOP 3</h4>
                         <div id="statsList"></div>
                     </div>
-
                     <button onclick="reOrder()" style="color:#94a3b8; background:none; border:none; text-decoration:underline; cursor:pointer;">메뉴 다시 고르기</button>
                 </div>
             </div>
         </div>
 
         <div id="adminDashboard" class="hidden">
-            <div class="card" style="border: 1px solid var(--primary); padding: 20px;">
-                <h3 style="color:var(--primary); margin-top:0;">📊 실시간 주문 현황 (어드민 전용)</h3>
+            <div class="card" style="border: 1px solid var(--primary);">
+                <h3 style="color:var(--primary); margin-top:0;">📊 실시간 정산 (어드민)</h3>
+                
+                <div id="sideMenuArea" class="hidden">
+                    <p style="font-size:13px; color:var(--primary); text-align:left; font-weight:bold;">✨ 사이드 메뉴 일괄 추가</p>
+                    <div class="grid" id="sideGrid" style="margin-bottom:20px;"></div>
+                </div>
+
                 <div id="adminOrderList"></div>
                 <div id="adminSummary" class="summary-card"></div>
             </div>
@@ -107,7 +94,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbz7DmCjev5AjViKS_8qIKoaYUaTDn_SS-sPx9LMt7B5MaHbz-MIztNgOEms2cGnYXvSXg/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxl2aU7IqrkasXiO0F9k2OqgjCxqtjYwRmww0A6FdNEtNK6Ql4Kega8PKYx0h5cHGfvJw/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -120,19 +107,14 @@
             try {
                 const res = await fetch(GAS_URL + "?type=get");
                 state = await res.json();
-                document.getElementById('errorMessage').classList.add('hidden');
                 renderUI();
                 if(isAdmin && state.status === "ORDERING") renderAdminDashboard();
-            } catch (e) {
-                const errDiv = document.getElementById('errorMessage');
-                errDiv.innerText = "❌ 연결 에러: " + e.message;
-                errDiv.classList.remove('hidden');
-            }
+            } catch (e) {}
         }
 
         function renderUI() {
             document.getElementById('loading').classList.add('hidden');
-            if(isAdmin) document.getElementById('adminSection').classList.remove('hidden');
+            if(isAdmin) document.getElementById('adminStartSection').classList.remove('hidden');
             ['waitingSection', 'votingSection', 'orderingSection'].forEach(s => document.getElementById(s).classList.add('hidden'));
 
             if(state.status === "WAITING") {
@@ -141,7 +123,6 @@
                 document.getElementById('votingSection').classList.remove('hidden');
                 if(!document.getElementById('resGrid').children.length) 
                     renderGrid('resGrid', state.restaurants, (v) => { selected.res = v; sendVote(); });
-                
                 startLocalTimer(state.endTime);
                 const percent = (state.voteCount / state.totalCount) * 100;
                 document.getElementById('voteProgress').style.width = percent + '%';
@@ -155,8 +136,60 @@
                 }
                 const isOrdered = localStorage.getItem('ordered_3.1');
                 setFormDisabled(!!isOrdered);
-                if(isOrdered) renderStats(); // 💡 일반 직원들에게도 실시간 인기 탑3 출력
+                if(isOrdered) renderStats();
             }
+        }
+
+        function renderAdminDashboard() {
+            document.getElementById('adminDashboard').classList.remove('hidden');
+            
+            // 사이드 메뉴 그리드 출력 (한 번만)
+            const sideArea = document.getElementById('sideMenuArea');
+            if(state.sideMenus && state.sideMenus.length > 0) {
+                sideArea.classList.remove('hidden');
+                if(!document.getElementById('sideGrid').children.length) {
+                    renderGrid('sideGrid', state.sideMenus, (obj) => selectSide(obj), true);
+                }
+            }
+
+            // 실시간 주문 테이블
+            let listHtml = `<table class="admin-table"><tr><th>성함</th><th>메뉴</th><th>가격</th></tr>`;
+            state.orderData.forEach(order => {
+                listHtml += `<tr><td>${order.name}</td><td>${order.menu}</td><td>${Number(order.price).toLocaleString()}원</td></tr>`;
+            });
+            listHtml += `</table>`;
+            document.getElementById('adminOrderList').innerHTML = listHtml;
+
+            // 요약 카드
+            let summaryHtml = `<strong>📋 메뉴별 합계</strong><br>`;
+            for (const [menu, count] of Object.entries(state.menuStats || {})) {
+                summaryHtml += `- ${menu}: ${count}명<br>`;
+            }
+            summaryHtml += `<hr style="border-color:var(--primary); margin:10px 0;">`;
+            summaryHtml += `<strong>💰 총 인원: ${state.orderData.length}명 / 합계: ${Number(state.totalPrice).toLocaleString()}원</strong>`;
+            document.getElementById('adminSummary').innerHTML = summaryHtml;
+        }
+
+        function selectSide(obj) {
+            // 사이드 메뉴는 '관리자(사이드) - 메뉴명' 형식으로 저장하여 중복 선택 가능하게 함
+            const sideUserName = `(사이드) ${obj.name}`;
+            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ 
+                type: "ORDER", userName: sideUserName, restaurant: state.winner, menu: obj.name, price: obj.price 
+            }) }).then(() => {
+                alert(`사이드 [${obj.name}] 추가 완료!`);
+                updateState();
+            });
+        }
+
+        function renderStats() {
+            const list = document.getElementById('statsList');
+            list.innerHTML = '';
+            const sorted = Object.entries(state.menuStats || {}).sort((a,b) => b[1] - a[1]).slice(0, 3);
+            const max = sorted.length ? Math.max(...sorted.map(s => s[1])) : 1;
+            sorted.forEach(([name, count]) => {
+                const width = (count / max) * 100;
+                list.innerHTML += `<div class="stat-row"><div class="stat-info"><span>${name}</span><span>${count}명</span></div><div class="stat-progress"><div class="stat-bar" style="width:${width}%;"></div></div></div>`;
+            });
         }
 
         function renderGrid(containerId, data, callback, isMenu = false) {
@@ -167,8 +200,10 @@
                 div.className = 'item';
                 div.innerText = isMenu ? `${item.name}\n${item.price.toLocaleString()}원` : item;
                 div.onclick = () => {
-                    container.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
-                    div.classList.add('active');
+                    if(containerId !== 'sideGrid') { // 사이드 선택시엔 전체 active 효과 안줌
+                        container.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
+                        div.classList.add('active');
+                    }
                     callback(item);
                 };
                 container.appendChild(div);
@@ -179,76 +214,18 @@
             const items = document.querySelectorAll('#menuGrid .item');
             if(!items.length) return;
             const btn = document.getElementById('randomBtn');
-            btn.disabled = true;
-            btn.innerText = "🎰 메뉴 고르는 중...";
-
-            let count = 0;
-            const maxRolls = 15;
+            btn.disabled = true; btn.innerText = "🎰 고르는 중...";
+            let count = 0; const maxRolls = 15;
             const interval = setInterval(() => {
                 items.forEach(el => el.classList.remove('slot-rolling'));
-                const rand = Math.floor(Math.random() * items.length);
-                items[rand].classList.add('slot-rolling');
-                count++;
-                if(count > maxRolls) {
+                items[Math.floor(Math.random() * items.length)].classList.add('slot-rolling');
+                if(count++ > maxRolls) {
                     clearInterval(interval);
                     items.forEach(el => el.classList.remove('slot-rolling'));
-                    const finalIdx = Math.floor(Math.random() * items.length);
-                    items[finalIdx].click();
-                    btn.disabled = false;
-                    btn.innerText = "🎲 메뉴 다시 돌리기";
+                    items[Math.floor(Math.random() * items.length)].click();
+                    btn.disabled = false; btn.innerText = "🎲 다시 돌리기";
                 }
             }, 100);
-        }
-
-        // 📊 일반 직원 화면용 실시간 TOP 3 차트 생성 함수
-        function renderStats() {
-            const list = document.getElementById('statsList');
-            if(!list) return;
-            list.innerHTML = '';
-            
-            // 정렬 후 상위 3개 추출
-            const sorted = Object.entries(state.menuStats || {}).sort((a,b) => b[1] - a[1]).slice(0, 3);
-            const max = sorted.length ? Math.max(...sorted.map(s => s[1])) : 1;
-            
-            if(sorted.length === 0) {
-                list.innerHTML = '<div style="color:#94a3b8; font-size:13px;">아직 주문 내역이 없습니다.</div>';
-                return;
-            }
-
-            sorted.forEach(([name, count]) => {
-                const width = (count / max) * 100;
-                list.innerHTML += `
-                    <div class="stat-row">
-                        <div class="stat-info">
-                            <span>${name}</span>
-                            <span style="color:var(--primary); font-weight:bold;">${count}명</span>
-                        </div>
-                        <div class="stat-progress">
-                            <div class="stat-bar" style="width:${width}%;"></div>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        function renderAdminDashboard() {
-            const dash = document.getElementById('adminDashboard');
-            dash.classList.remove('hidden');
-            if(!state.orderData) return;
-
-            let listHtml = `<table class="admin-table"><tr><th>성함</th><th>메뉴</th><th>가격</th></tr>`;
-            state.orderData.forEach(order => {
-                listHtml += `<tr><td>${order.name}</td><td>${order.menu}</td><td>${Number(order.price).toLocaleString()}원</td></tr>`;
-            });
-            listHtml += `</table>`;
-            document.getElementById('adminOrderList').innerHTML = listHtml;
-
-            let summaryHtml = `<strong>📋 메뉴별 전체 합계</strong><br>`;
-            for (const [menu, count] of Object.entries(state.menuStats || {})) {
-                summaryHtml += `- ${menu}: ${count}명<br>`;
-            }
-            summaryHtml += `<hr style="border-color:var(--primary); margin:10px 0;">`;
-            summaryHtml += `<strong>💰 총 인원: ${state.orderData.length}명 / 합계: ${Number(state.totalPrice).toLocaleString()}원</strong>`;
-            document.getElementById('adminSummary').innerHTML = summaryHtml;
         }
 
         function startLocalTimer(endTime) {
@@ -264,8 +241,7 @@
         function startSystem() {
             if(!confirm("모든 기록을 초기화하고 투표를 시작하시겠습니까?")) return;
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_START" }) }).then(() => {
-                alert("투표가 시작되었습니다!");
-                location.href = location.pathname + (isAdmin ? "?admin=true" : "");
+                alert("투표가 시작되었습니다!"); location.reload();
             });
         }
 
@@ -281,7 +257,6 @@
         function reOrder() { localStorage.removeItem('ordered_3.1'); setFormDisabled(false); updateState(); }
         function setFormDisabled(disabled) {
             document.getElementById('formContainer').classList.toggle('hidden', disabled);
-            document.getElementById('orderedMsg').classList.toggle('toggle', !disabled);
             document.getElementById('orderedMsg').classList.toggle('hidden', !disabled);
         }
 
