@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v9.0</title>
+    <title>Lunch Pro v9.1</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -102,7 +102,6 @@
 
             <div id="adminTabContent1" class="card" style="border: 1px solid var(--primary); padding: 20px;">
                 <button class="btn-sub" onclick="copyRecallNotice()">🚨 미입력자 소환 메신저 문구 복사</button>
-                <button class="btn-sub" id="btnCopyScript" onclick="copyOrderScript()" style="background:#0284c7; border-color:#0369a1; display:none;">📞 식당 주방 이모님 주문 대본 복사</button>
                 
                 <div id="sideMenuArea" class="hidden">
                     <p style="font-size:13px; color:var(--primary); text-align:left; font-weight:bold;">✨ 사이드 메뉴 일괄 추가</p>
@@ -122,7 +121,8 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbyOXqTfqKQpE6pJAoAeUefS3MydNKaje3T_4YMOM3iyoEpCf0YoVNzuWN81syia6TNvXA/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbw3F5hpGVDm6zuh_a9eofGRALE3waG0Q88G4phP8XbUm6gwFmVOKPVxs3oVgacvK8ODmQ/exec
+";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -145,7 +145,6 @@
             } catch (e) {}
         }
 
-        // 📋 [v9.0] 1. 최초 메신저 배포용 쪽지 양식 자동 생성
         function copyLaunchNotice() {
             const dateStr = state.sysDate || `${new Date().getMonth()+1}.${new Date().getDate()}`;
             const link = window.location.href.split('?')[0];
@@ -154,7 +153,6 @@
             alert("📋 투표 시작 안내 문구가 클립보드에 복사되었습니다. 사내 메신저에 바로 붙여넣기(Ctrl+V) 하세요!");
         }
 
-        // 🚨 [v9.0] 2. 미선택자 리콜 문구 복사
         function copyRecallNotice() {
             let unselectedUsers = [];
             let userOrdersMap = {};
@@ -166,34 +164,6 @@
             const text = `🔔 오늘 점심 주문 미입력자 안내: [ ${unselectedUsers.join(', ')} ] 님은 마감 전이니 얼른 대시보드에서 메뉴를 선택해 주세요!`;
             navigator.clipboard.writeText(text);
             alert("📋 미선택자 리콜 문구가 클립보드에 복사되었습니다!");
-        }
-
-        // 📞 [v9.0] 3. 식당 전화 주문용 스크립트 대본 생성
-        function copyOrderScript() {
-            let menuStats = {};
-            let userOrdersMap = {};
-            state.orderData.forEach(o => {
-                if(!o.name.includes("[사이드]")) {
-                    if(!userOrdersMap[o.name]) userOrdersMap[o.name] = [];
-                    userOrdersMap[o.name].push(o);
-                }
-            });
-            state.employees.forEach(emp => {
-                if (!excludedUsers.has(emp) && userOrdersMap[emp]) {
-                    userOrdersMap[emp].forEach(o => { menuStats[o.menu] = (menuStats[o.menu] || 0) + 1; });
-                }
-            });
-            state.orderData.forEach((order, idx) => {
-                if (order.name.includes("[사이드]") && !excludedUsers.has(`side_${idx}`)) {
-                    menuStats[order.menu] = (menuStats[order.menu] || 0) + 1;
-                }
-            });
-
-            let scriptArr = [];
-            for (const [menu, count] of Object.entries(menuStats)) { scriptArr.push(`${menu} ${count}개`); }
-            const text = `안녕하세요, ${state.winner}죠? 주문 좀 드릴게요.\n\n${scriptArr.join(', ')} 보내주세요.`;
-            navigator.clipboard.writeText(text);
-            alert("📞 주방 이모님 전달용 대본이 복사되었습니다! 그대로 읽거나 붙여넣으시면 됩니다.");
         }
 
         function renderUI() {
@@ -221,7 +191,7 @@
                 if(!document.getElementById('userGrid').children.length) {
                     renderGrid('userGrid', state.employees, (v) => {
                         selected.user = v;
-                        highlightRecentMenu(); // 이름 선택 시 최근 메뉴 강조
+                        highlightRecentMenu();
                     });
                     renderGrid('menuGrid', state.menus, (obj) => selectMainMenu(obj), true);
                     
@@ -243,7 +213,6 @@
             }
         }
 
-        // 🌟 [v9.0] 즐겨찾기: 최근 선택했던 메뉴 표시
         function highlightRecentMenu() {
             if(!selected.user || !state.historyData) return;
             const myHistory = state.historyData.filter(h => h.name === selected.user && h.restaurant === state.winner);
@@ -261,7 +230,6 @@
             });
         }
 
-        // 🍜 [v9.0] 메인 메뉴 클릭 및 곱빼기 판단 로직
         function selectMainMenu(obj) {
             selected.rawMenuName = obj.name;
             selected.price = Number(obj.price);
@@ -271,7 +239,6 @@
             doubleCb.checked = false;
             selected.doubleFee = 0;
 
-            // 메뉴명에 '곱빼기 가능:금액'이 정규식으로 들어있는지 체크
             const match = obj.name.match(/\(곱빼기 가능:(\d+)\)/);
             if(match) {
                 selected.doubleFee = Number(match[1]);
@@ -286,7 +253,6 @@
         function calcDoublePrice() {
             const doubleCb = document.getElementById('doubleSizeCb');
             if(doubleCb.checked) {
-                // 곱빼기 선택 시 원래 메뉴명 뒤에 표기 붙임
                 selected.menu = selected.rawMenuName.replace(/\(곱빼기 가능:.*\)/g, '').trim() + " (곱빼기)";
             } else {
                 selected.menu = selected.rawMenuName.replace(/\(곱빼기 가능:.*\)/g, '').trim();
@@ -303,7 +269,6 @@
 
         function renderAdminDashboard() {
             document.getElementById('adminDashboard').classList.remove('hidden');
-            document.getElementById('btnCopyScript').style.display = 'block';
             const sideArea = document.getElementById('sideMenuArea');
             if(state.sideMenus && state.sideMenus.length > 0) {
                 sideArea.classList.remove('hidden');
@@ -400,7 +365,6 @@
             document.getElementById('adminSummary').innerHTML = summaryHtml;
         }
 
-        // 📊 [v9.0] 지출 비용 및 정산 장부 통계 고도화
         function renderAnalytics() {
             if(!state.historyData || state.historyData.length === 0) {
                 document.getElementById('analyticsContent').innerHTML = `<span style="color:#64748b;">아직 누적된 데이터가 없습니다. 하단의 확정 버튼을 눌러 데이터를 쌓아보세요!</span>`;
@@ -409,7 +373,7 @@
 
             let resDatesMap = {}; 
             let menuCounts = {};
-            let personalSpending = {}; // 인당 지출 총액
+            let personalSpending = {}; 
             let totalAllSpending = 0;
             
             state.historyData.forEach(h => {
@@ -500,6 +464,7 @@
             renderAdminDashboard();
         }
 
+        // 💡 [v9.1 수정] 사이드 메뉴 일괄 클릭 시 백엔드 규격에 맞는 식당 이름을 실시간 상태값에서 추출해 온전하게 전송
         function selectSide(obj) {
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ 
                 type: "ORDER", userName: `[사이드] ${obj.name}`, restaurant: state.winner, menu: obj.name, price: obj.price 
@@ -512,7 +477,6 @@
             data.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'item';
-                // 화면 표시용 이름 클렌징
                 div.innerText = isMenu ? `${item.name.replace(/\(곱빼기 가능:.*\)/g, '').trim()}\n${Number(item.price).toLocaleString()}원` : item;
                 div.onclick = () => {
                     container.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
@@ -570,7 +534,6 @@
             localStorage.setItem('ordered_6.0', 'true');
             setFormDisabled(true);
 
-            // 곱빼기 체크 여부에 따른 최종 가격 산정
             let finalMainPrice = selected.price;
             const doubleCb = document.getElementById('doubleSizeCb');
             if(doubleCb && doubleCb.checked) { finalMainPrice += selected.doubleFee; }
