@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v9.1</title>
+    <title>Lunch Pro v10.1</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -34,6 +34,14 @@
         .admin-nav-item { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; }
         .admin-nav-item.active { background: var(--primary); color: #0f172a; }
         .badge-recent { position: absolute; top: 5px; right: 5px; background: #fba51a; color: #0f172a; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 8px; }
+        
+        /* 🎰 [④번 반영] 슬롯머신 역동적인 롤링 이펙트 애니메이션 스타일 */
+        @keyframes slotBlurEffect {
+            0% { transform: scale(1.0); filter: blur(0px); background: #0f172a; border-color: #334155; }
+            50% { transform: scale(1.05); filter: blur(2px); background: rgba(244, 63, 94, 0.3); border-color: var(--accent); color: #ffffff; }
+            100% { transform: scale(1.0); filter: blur(0px); background: #0f172a; border-color: #334155; }
+        }
+        .slot-rolling { animation: slotBlurEffect 0.12s infinite alternate; z-index: 10; box-shadow: 0 0 15px rgba(244, 63, 94, 0.4); }
     </style>
 </head>
 <body>
@@ -52,8 +60,8 @@
 
         <div id="votingSection" class="hidden">
             <div class="card">
-                <h2>🍴 식당 투표</h2>
-                <div class="timer" id="voteTimer">00:00</div>
+                <h2>🍴 식당 투표 (2분 마감)</h2>
+                <div class="timer" id="voteTimer">02:00</div>
                 <div class="rule-text">📢 식당은 과반수로 정해지게 됩니다<br>(미투표 시 투표인원들 중 과반수로 가게 됨)</div>
                 <div class="progress-container"><div id="voteProgress" class="progress-bar"></div></div>
                 <p id="voteCountText" style="font-size:12px; color:var(--primary); margin-top:5px;"></p>
@@ -97,7 +105,7 @@
         <div id="adminDashboard" class="hidden">
             <div class="admin-navbar">
                 <div class="admin-nav-item active" id="tabBtn1" onclick="switchAdminTab(1)">📊 실시간 정산</div>
-                <div class="admin-nav-item" id="tabBtn2" onclick="switchAdminTab(2)">📈 데이터 분석 룸</div>
+                <div class="admin-nav-item" id="tabBtn2" onclick="switchAdminTab(2)">📂 히스토리 장부</div>
             </div>
 
             <div id="adminTabContent1" class="card" style="border: 1px solid var(--primary); padding: 20px;">
@@ -114,14 +122,29 @@
             </div>
 
             <div id="adminTabContent2" class="card hidden" style="border: 1px solid #475569; padding: 20px; text-align:left;">
-                <h3 style="color:var(--primary); margin-top:0;">📈 팀 선호도 및 지출 통계</h3>
-                <div id="analyticsContent" style="font-size:14px; line-height:1.8; color:#e2e8f0;">데이터 집계 중...</div>
+                <h3 style="color:var(--primary); margin-top:0;">📂 과거 점심 기록 조회 장부</h3>
+                
+                <div style="margin-bottom:15px; display:flex; gap:10px;">
+                    <select id="filterRestaurant" style="flex:1; padding:10px; border-radius:8px; background:#0f172a; color:white; border:1px solid #475569; font-size:13px;" onchange="filterHistoryTable()">
+                        <option value="">모든 식당 필터</option>
+                    </select>
+                    <select id="filterDate" style="flex:1; padding:10px; border-radius:8px; background:#0f172a; color:white; border:1px solid #475569; font-size:13px;" onchange="filterHistoryTable()">
+                        <option value="">모든 날짜 필터</option>
+                    </select>
+                </div>
+
+                <div id="historyTableContainer" style="max-height:380px; overflow-y:auto; border:1px solid #334155; border-radius:12px;">
+                    <table class="admin-table" id="viewHistoryTable" style="margin-top:0;">
+                        <thead><tr><th>날짜</th><th>식당</th><th>이름</th><th>메뉴</th><th>가격</th></tr></thead>
+                        <tbody id="historyTableBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbzczPEHwa2SO6f_VCI1Y91LggOxhWNfASK3b1i_ShrZbqL598j1ggEiJXuaTpUiFgRDHQ/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwZa1_UC0C97F0qukF6epgSbG2f0GmtH_DNgzW0GUeBgax6Gc60sNz7xFxEF16CN_cmQw/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -130,7 +153,6 @@
         let selected = { res: null, user: null, menu: null, price: 0, rawMenuName: null, doubleFee: 0 };
         let excludedUsers = new Set(); 
         let timerInterval;
-        let activeAdminTab = 1;
 
         async function updateState() {
             try {
@@ -139,7 +161,7 @@
                 renderUI();
                 if(isAdmin && state.status === "ORDERING") {
                     renderAdminDashboard();
-                    renderAnalytics();
+                    renderHistoryLogRoom();
                 }
             } catch (e) {}
         }
@@ -149,7 +171,7 @@
             const link = window.location.href.split('?')[0];
             const text = `${dateStr} 회계팀 점심 투표의 건\n\n안녕하십니까 회계팀 구수완입니다!\n\n금일 점심 투표를 진행하고자 하오니 아래 링크를 클릭하시어\n투표 및 메뉴 선택을 진행해주시기 바랍니다!\n\n링크: ${link}\n\n감사합니다.\n구수완 올림`;
             navigator.clipboard.writeText(text);
-            alert("📋 투표 시작 안내 문구가 클립보드에 복사되었습니다. 사내 메신저에 바로 붙여넣기(Ctrl+V) 하세요!");
+            alert("📋 투표 시작 안내 문구가 클립보드에 복사되었습니다.");
         }
 
         function copyRecallNotice() {
@@ -159,7 +181,7 @@
             state.employees.forEach(emp => {
                 if(!excludedUsers.has(emp) && !userOrdersMap[emp]) unselectedUsers.push(emp);
             });
-            if(unselectedUsers.length === 0) return alert("✅ 미선택자가 없습니다! 모든 인원이 완벽하게 입력했습니다.");
+            if(unselectedUsers.length === 0) return alert("✅ 미선택자가 없습니다!");
             const text = `🔔 오늘 점심 주문 미입력자 안내: [ ${unselectedUsers.join(', ')} ] 님은 마감 전이니 얼른 대시보드에서 메뉴를 선택해 주세요!`;
             navigator.clipboard.writeText(text);
             alert("📋 미선택자 리콜 문구가 클립보드에 복사되었습니다!");
@@ -259,7 +281,6 @@
         }
 
         function switchAdminTab(tabNum) {
-            activeAdminTab = tabNum;
             document.getElementById('tabBtn1').classList.toggle('active', tabNum === 1);
             document.getElementById('tabBtn2').classList.toggle('active', tabNum === 2);
             document.getElementById('adminTabContent1').classList.toggle('hidden', tabNum !== 1);
@@ -364,54 +385,51 @@
             document.getElementById('adminSummary').innerHTML = summaryHtml;
         }
 
-        function renderAnalytics() {
-            if(!state.historyData || state.historyData.length === 0) {
-                document.getElementById('analyticsContent').innerHTML = `<span style="color:#64748b;">아직 누적된 데이터가 없습니다. 하단의 확정 버튼을 눌러 데이터를 쌓아보세요!</span>`;
+        // 💡 [①번 반영] 조회 룸 고도화: 날짜 및 식당 다중/단일 필터 세팅
+        function renderHistoryLogRoom() {
+            if(!state.historyData || state.historyData.length === 0) return;
+            const resSelect = document.getElementById('filterRestaurant');
+            const dateSelect = document.getElementById('filterDate');
+            
+            if(resSelect.children.length === 1) {
+                let uniqueRes = [...new Set(state.historyData.map(h => h.restaurant))];
+                uniqueRes.forEach(r => { resSelect.innerHTML += `<option value="${r}">${r}</option>`; });
+            }
+            if(dateSelect.children.length === 1) {
+                let uniqueDates = [...new Set(state.historyData.map(h => h.date))].sort().reverse();
+                uniqueDates.forEach(d => { dateSelect.innerHTML += `<option value="${d}">${d}</option>`; });
+            }
+
+            filterHistoryTable();
+        }
+
+        function filterHistoryTable() {
+            const selectedRes = document.getElementById('filterRestaurant').value;
+            const selectedDate = document.getElementById('filterDate').value;
+            const tbody = document.getElementById('historyTableBody');
+            
+            let filteredData = state.historyData;
+
+            if(selectedRes) { filteredData = filteredData.filter(h => h.restaurant === selectedRes); }
+            if(selectedDate) { filteredData = filteredData.filter(h => h.date === selectedDate); }
+
+            tbody.innerHTML = '';
+            let rev = [...filteredData].reverse();
+            
+            if(rev.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b;">조건에 맞는 내역이 없습니다.</td></tr>`;
                 return;
             }
 
-            let resDatesMap = {}; 
-            let menuCounts = {};
-            let personalSpending = {}; 
-            let totalAllSpending = 0;
-            
-            state.historyData.forEach(h => {
-                if(!resDatesMap[h.restaurant]) resDatesMap[h.restaurant] = new Set();
-                resDatesMap[h.restaurant].add(h.date);
-                
-                menuCounts[h.menu] = (menuCounts[h.menu] || 0) + 1;
-                
-                if(h.name && !h.name.includes("[사이드]")) {
-                    personalSpending[h.name] = (personalSpending[h.name] || 0) + Number(h.price);
-                    totalAllSpending += Number(h.price);
-                }
+            rev.forEach(h => {
+                tbody.innerHTML += `<tr>
+                    <td>${h.date.substring(5)}</td>
+                    <td>${h.restaurant}</td>
+                    <td>${h.name}</td>
+                    <td>${h.menu}</td>
+                    <td>${Number(h.price).toLocaleString()}원</td>
+                </tr>`;
             });
-
-            let resCounts = {};
-            for (const [res, dateSet] of Object.entries(resDatesMap)) { resCounts[res] = dateSet.size; }
-
-            let topRes = Object.entries(resCounts).sort((a,b) => b[1]-a[1]).slice(0, 3);
-            let topMenu = Object.entries(menuCounts).sort((a,b) => b[1]-a[1]).slice(0, 3);
-            let gourmand = Object.entries(personalSpending).sort((a,b) => b[1]-a[1]).slice(0, 1);
-
-            let html = `🥇 <strong>가장 자주 간 식당 TOP 3</strong><br>`;
-            topRes.forEach((r, i) => { html += `${i+1}등. ${r[0]} (${r[1]}회 방문)<br>`; });
-            
-            html += `<hr style="border-color:#334155; margin:10px 0;">`;
-            html += `🔥 <strong>팀원들이 사랑한 최애 메뉴 TOP 3</strong><br>`;
-            topMenu.forEach((m, i) => { html += `${i+1}등. ${m[0]} (${m[1]}번 주문)<br>`; });
-
-            html += `<hr style="border-color:#334155; margin:10px 0;">`;
-            html += `💰 <strong>회계팀 점심 누적 지출 통계</strong><br>`;
-            html += `- 누적 전체 점심값 지출: <span style="color:var(--primary); font-weight:bold;">${totalAllSpending.toLocaleString()}원</span><br>`;
-            if(gourmand.length > 0) {
-                html += `- 누적 지출 1위 (미식가): <span style="color:#fba51a; font-weight:bold;">${gourmand[0][0]}님</span> (${gourmand[0][1].toLocaleString()}원)<br>`;
-            }
-
-            html += `<hr style="border-color:#334155; margin:10px 0;">`;
-            html += `<span style="font-size:11px; color:#94a3b8;">* 총 ${Object.keys(resCounts).reduce((a,b)=>a+resCounts[b],0)}일 간의 유니크 확정 데이터 분석 완료</span>`;
-            
-            document.getElementById('analyticsContent').innerHTML = html;
         }
 
         function saveTodayHistory() {
@@ -436,11 +454,11 @@
             });
 
             if (unselectedUsers.length > 0) {
-                alert(`⚠️ 아직 메뉴를 선택하지 않았거나 제외 처리가 되지 않은 팀원이 있습니다.\n\n대상자: [ ${unselectedUsers.join(', ')} ]\n\n명단을 모두 확인하거나 제외 체크 후 다시 시도해 주세요!`);
+                alert(`⚠️ 아직 메뉴를 선택하지 않았거나 제외 처리가 되지 않은 팀원이 있습니다.\n\n대상자: [ ${unselectedUsers.join(', ')} ]`);
                 return;
             }
 
-            if(!confirm("현재 화면의 정산 인원과 메뉴 내역을 오늘 자 최종 기록으로 확정 저장하시겠습니까?\n(이미 오늘 기록한 내역이 있다면 새 내역으로 덮어씁니다.)")) return;
+            if(!confirm("현재 화면의 정산 인원과 메뉴 내역을 오늘 자 최종 기록으로 확정 저장하시겠습니까?")) return;
 
             state.orderData.forEach((order, idx) => {
                 if (order.name.includes("[사이드]") && !excludedUsers.has(`side_${idx}`)) {
@@ -452,7 +470,7 @@
                 method: "POST",
                 body: JSON.stringify({ type: "ADMIN_SAVE_HISTORY", restaurant: state.winner, records: recordsToSave })
             }).then(() => {
-                alert("오늘의 점심 최종 내역이 덮어쓰기 완료되어 깨끗하게 저장되었습니다!");
+                alert("오늘의 점심 최종 내역이 저장되었습니다!");
                 updateState();
             });
         }
@@ -463,7 +481,6 @@
             renderAdminDashboard();
         }
 
-        // 💡 [v9.1 수정] 사이드 메뉴 일괄 클릭 시 백엔드 규격에 맞는 식당 이름을 실시간 상태값에서 추출해 온전하게 전송
         function selectSide(obj) {
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ 
                 type: "ORDER", userName: `[사이드] ${obj.name}`, restaurant: state.winner, menu: obj.name, price: obj.price 
@@ -486,22 +503,42 @@
             });
         }
 
+        // 💡 [④번 반영] 메뉴 랜덤 슬롯머신에 블러 및 역동적인 컬러 스케일 이펙트 강화 효과 부여
         function randomMenuSlot() {
             const items = document.querySelectorAll('#menuGrid .item');
             if(!items.length) return;
             const btn = document.getElementById('randomBtn');
-            btn.disabled = true; btn.innerText = "🎰 고르는 중...";
-            let count = 0; const maxRolls = 15;
+            btn.disabled = true; btn.innerText = "🎰 메뉴 셔플 중...";
+            
+            let count = 0; 
+            const maxRolls = 20; // 셔플 회수를 늘려 더 긴장감 조성
+            
             const interval = setInterval(() => {
                 items.forEach(el => el.classList.remove('slot-rolling'));
-                items[Math.floor(Math.random() * items.length)].classList.add('slot-rolling');
+                
+                // 랜덤하게 무작위 타겟들에게 롤링 클래스 분사
+                const randIdx1 = Math.floor(Math.random() * items.length);
+                const randIdx2 = Math.floor(Math.random() * items.length);
+                items[randIdx1].classList.add('slot-rolling');
+                items[randIdx2].classList.add('slot-rolling');
+                
                 if(count++ > maxRolls) {
                     clearInterval(interval);
                     items.forEach(el => el.classList.remove('slot-rolling'));
-                    items[Math.floor(Math.random() * items.length)].click();
-                    btn.disabled = false; btn.innerText = "🎲 다시 돌리기";
+                    
+                    // 최종 한 장 엄선하여 자동 선택(클릭) 처리
+                    const finalChoice = items[Math.floor(Math.random() * items.length)];
+                    finalChoice.click();
+                    
+                    // 선택된 메뉴 강조 효과
+                    finalChoice.style.transition = "0.3s";
+                    finalChoice.style.transform = "scale(1.1)";
+                    setTimeout(() => finalChoice.style.transform = "scale(1.0)", 300);
+
+                    btn.disabled = false; 
+                    btn.innerText = "🎲 슬롯머신 재가동";
                 }
-            }, 100);
+            }, 80); // 속도를 빠르게 당겨서 더 역동적으로 표현
         }
 
         function startLocalTimer(endTime) {
