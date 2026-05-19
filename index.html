@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.8</title>
+    <title>Lunch Pro v3.9</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -11,6 +11,7 @@
         .card { background: var(--card); padding: 30px; border-radius: 24px; border: 1px solid #475569; margin-bottom: 20px; position: relative; }
         .timer { font-size: 64px; color: var(--primary); font-weight: 800; margin: 10px 0; font-variant-numeric: tabular-nums; }
         .guide-text { font-size: 13px; color: #94a3b8; line-height: 1.5; margin-bottom: 15px; }
+        .rule-text { font-size: 13px; color: #fba51a; font-weight: bold; line-height: 1.5; margin: 5px 0 15px 0; background: rgba(251, 165, 26, 0.1); padding: 8px; border-radius: 8px; border: 1px dashed rgba(251, 165, 26, 0.3); }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
         .item { background: #0f172a; padding: 18px; border-radius: 16px; border: 2px solid #334155; cursor: pointer; transition: 0.1s; position: relative; }
         .item.active { background: var(--primary); color: #0f172a; font-weight: bold; border-color: var(--primary); }
@@ -48,6 +49,8 @@
             <div class="card">
                 <h2>🍴 식당 투표</h2>
                 <div class="timer" id="voteTimer">00:00</div>
+                <div class="rule-text">📢 식당은 과반수로 정해지게 됩니다<br>(미투표 시 투표인원들 중 과반수로 가게 됨)</div>
+                <div class="guide-text">식당 변경은 시간 내 가능하며 마지막 선택이 반영됩니다.</div>
                 <div class="progress-container"><div id="voteProgress" class="progress-bar"></div></div>
                 <p id="voteCountText" style="font-size:12px; color:var(--primary); margin-top:5px;"></p>
                 <div class="grid" id="resGrid"></div>
@@ -143,7 +146,6 @@
         function renderAdminDashboard() {
             document.getElementById('adminDashboard').classList.remove('hidden');
             
-            // 사이드 메뉴 그리드 출력 (한 번만)
             const sideArea = document.getElementById('sideMenuArea');
             if(state.sideMenus && state.sideMenus.length > 0) {
                 sideArea.classList.remove('hidden');
@@ -152,7 +154,6 @@
                 }
             }
 
-            // 실시간 주문 테이블
             let listHtml = `<table class="admin-table"><tr><th>성함</th><th>메뉴</th><th>가격</th></tr>`;
             state.orderData.forEach(order => {
                 listHtml += `<tr><td>${order.name}</td><td>${order.menu}</td><td>${Number(order.price).toLocaleString()}원</td></tr>`;
@@ -160,7 +161,6 @@
             listHtml += `</table>`;
             document.getElementById('adminOrderList').innerHTML = listHtml;
 
-            // 요약 카드
             let summaryHtml = `<strong>📋 메뉴별 합계</strong><br>`;
             for (const [menu, count] of Object.entries(state.menuStats || {})) {
                 summaryHtml += `- ${menu}: ${count}명<br>`;
@@ -171,7 +171,6 @@
         }
 
         function selectSide(obj) {
-            // 사이드 메뉴는 '관리자(사이드) - 메뉴명' 형식으로 저장하여 중복 선택 가능하게 함
             const sideUserName = `(사이드) ${obj.name}`;
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ 
                 type: "ORDER", userName: sideUserName, restaurant: state.winner, menu: obj.name, price: obj.price 
@@ -200,7 +199,7 @@
                 div.className = 'item';
                 div.innerText = isMenu ? `${item.name}\n${item.price.toLocaleString()}원` : item;
                 div.onclick = () => {
-                    if(containerId !== 'sideGrid') { // 사이드 선택시엔 전체 active 효과 안줌
+                    if(containerId !== 'sideGrid') {
                         container.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
                         div.classList.add('active');
                     }
