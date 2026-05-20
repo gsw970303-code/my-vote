@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v10.6</title>
+    <title>Lunch Pro v10.5</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; --info: #38bdf8; --warning: #fba51a; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -15,6 +15,7 @@
         .item { background: #0f172a; padding: 18px; border-radius: 16px; border: 2px solid #334155; cursor: pointer; transition: 0.1s; position: relative; }
         .item.active { background: var(--primary); color: #0f172a; font-weight: bold; border-color: var(--primary); }
         .btn-main { width: 100%; padding: 16px; background: var(--primary); color: #0f172a; border: none; border-radius: 16px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        .btn-main:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
         .btn-sub { width: 100%; padding: 10px; background: #334155; color: white; border: 1px solid #475569; border-radius: 10px; font-size: 13px; font-weight: bold; cursor: pointer; margin-bottom: 12px; }
         .progress-container { width: 100%; background: #334155; height: 8px; border-radius: 4px; margin-top: 10px; overflow: hidden; }
         .progress-bar { height: 100%; background: var(--primary); transition: 0.3s; width: 0%; }
@@ -31,11 +32,13 @@
         .pside-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 14px; }
         .pside-item input { transform: scale(1.2); margin-right: 8px; cursor: pointer; }
         
+        /* 상단 탭 내비게이션 바 스타일 */
         .admin-navbar { display: flex; background: #0f172a; border-radius: 16px; padding: 5px; margin-bottom: 15px; border: 1px solid #334155; gap: 4px; }
         .admin-nav-item { flex: 1; padding: 12px 6px; text-align: center; cursor: pointer; font-size: 13px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; }
         .admin-nav-item.active { background: var(--primary); color: #0f172a; }
         .badge-recent { position: absolute; top: 5px; right: 5px; background: var(--warning); color: #0f172a; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 8px; }
         
+        /* 📊 직관적인 순위 통계 비주얼 보드 레이아웃 */
         .rank-card-list { display: flex; flex-direction: column; gap: 8px; margin-top: 5px; }
         .rank-card-row { background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; padding: 10px 14px; border-radius: 12px; display: flex; flex-direction: column; text-align: left; }
         .rank-card-top { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
@@ -43,7 +46,7 @@
         .rank-badge.rank1 { background: var(--primary); }
         .rank-badge.rank2 { background: var(--info); }
         .rank-badge.rank3 { background: var(--warning); }
-        .rank-menu-name { color: #ffffff; flex: 1; margin-left: 8px; font-size: 13px; }
+        .rank-menu-name { color: #ffffff; flex: 1; margin-left: 8px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .rank-count-val { font-size: 12px; color: #94a3b8; font-weight: bold; }
         .rank-mini-progress { width: 100%; height: 5px; background: #1e293b; border-radius: 3px; overflow: hidden; }
         .rank-mini-bar { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
@@ -208,7 +211,28 @@
                     renderAdminDashboard();
                     renderHistoryLogRoom();
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.error("데이터 동기화 실패:", e);
+            }
+        }
+
+        function renderGrid(id, list, callback, isObj = false) {
+            const container = document.getElementById(id);
+            container.innerHTML = '';
+            list.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                const displayName = isObj ? item.name.replace(/\(곱빼기 가능:.*\)/g, '').trim() : item;
+                const displayPrice = isObj ? `\n<span style="font-size:12px;color:#94a3b8;">${Number(item.price).toLocaleString()}원</span>` : '';
+                div.innerHTML = displayName.replace('\n','') + displayPrice;
+                
+                div.onclick = () => {
+                    container.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
+                    div.classList.add('active');
+                    callback(item);
+                };
+                container.appendChild(div);
+            });
         }
 
         function copyLaunchNotice() {
@@ -246,7 +270,7 @@
                 if(!document.getElementById('resGrid').children.length) 
                     renderGrid('resGrid', state.restaurants, (v) => { selected.res = v; sendVote(); });
                 startLocalTimer(state.endTime);
-                const percent = (state.voteCount / state.totalCount) * 100;
+                const percent = state.totalCount > 0 ? (state.voteCount / state.totalCount) * 100 : 0;
                 document.getElementById('voteProgress').style.width = percent + '%';
                 document.getElementById('voteCountText').innerText = `참여 현황: ${state.voteCount} / ${state.totalCount}`;
             } else if(state.status === "ORDERING") {
@@ -270,7 +294,7 @@
                             pSideList.innerHTML += `
                                 <div class="pside-item">
                                     <label><input type="checkbox" class="pside-cb" data-name="${side.name}" data-price="${side.price}"> ${side.name.replace('(개인사이드)','').trim()}</label>
-                                    <span style="color:#94a3b8;">+${side.price.toLocaleString()}원</span>
+                                    <span style="color:#94a3b8;">+${Number(side.price).toLocaleString()}원</span>
                                 </div>`;
                         });
                     } else { pSideArea.classList.add('hidden'); }
@@ -326,13 +350,10 @@
         }
 
         function switchAdminTab(tabNum) {
-            document.getElementById('tabBtn1').classList.toggle('active', tabNum === 1);
-            document.getElementById('tabBtn2').classList.toggle('active', tabNum === 2);
-            document.getElementById('tabBtn3').classList.toggle('active', tabNum === 3);
-            
-            document.getElementById('adminTabContent1').classList.toggle('hidden', tabNum !== 1);
-            document.getElementById('adminTabContent2').classList.toggle('hidden', tabNum !== 2);
-            document.getElementById('adminTabContent3').classList.toggle('hidden', tabNum !== 3);
+            for(let i=1; i<=3; i++) {
+                document.getElementById(`tabBtn${i}`).classList.toggle('active', tabNum === i);
+                document.getElementById(`adminTabContent${i}`).classList.toggle('hidden', tabNum !== i);
+            }
         }
 
         function renderAdminDashboard() {
@@ -433,6 +454,12 @@
             document.getElementById('adminSummary').innerHTML = summaryHtml;
         }
 
+        function toggleExclude(key) {
+            if(excludedUsers.has(key)) excludedUsers.delete(key);
+            else excludedUsers.add(key);
+            renderAdminDashboard();
+        }
+
         function renderHistoryLogRoom() {
             if(!state.historyData || state.historyData.length === 0) return;
             const resSelect = document.getElementById('filterRestaurant');
@@ -499,6 +526,7 @@
         }
 
         function calculateAdvancedStats() {
+            // 1. 오늘 실시간 인기 메뉴 TOP 3 연산 및 렌더링
             let liveMenuMap = {};
             let totalLiveOrders = 0;
             if(state.orderData && state.orderData.length > 0) {
@@ -524,236 +552,236 @@
             }
             document.getElementById('userLiveTopMenus').innerHTML = liveHtml;
 
+            // 2. 과거 장부 기록 데이터 기반 역대 통계 연산
             if (!state.historyData || state.historyData.length === 0) {
                 const noLogMsg = '<div style="color:#94a3b8; font-style:italic; padding: 10px 0;">데이터가 부족하여 통계를 낼 수 없습니다.</div>';
-                document.getElementById('totalLogCountText').innerText = "* 누적 데이터 없음";
+                document.getElementById('userArchiveTopMenus').innerHTML = noLogMsg;
                 document.getElementById('statsTopRestaurants').innerHTML = noLogMsg;
                 document.getElementById('statsTopMenus').innerHTML = noLogMsg;
-                document.getElementById('userArchiveTopMenus').innerHTML = noLogMsg;
+                document.getElementById('totalLogCountText').innerText = "* 누적 데이터 없음";
                 return;
             }
 
-            document.getElementById('totalLogCountText').innerText = `* 총 ${state.historyData.length}개의 누적 데이터 기반 분석 완료`;
+            document.getElementById('totalLogCountText').innerText = `* 총 ${state.historyData.length}건의 누적 주문 데이터를 바탕으로 실시간 자동 연산됨`;
 
-            let visitMap = {};
-            let trackedDayRes = new Set();
+            // 오늘 확정된 식당의 역대 누적 인기 메뉴 TOP 3
+            let archiveMenuMap = {};
+            let totalArchiveCount = 0;
             state.historyData.forEach(h => {
-                let uniqueKey = `${h.date}_${h.restaurant}`;
-                if(!trackedDayRes.has(uniqueKey)) {
-                    trackedDayRes.add(uniqueKey);
-                    visitMap[h.restaurant] = (visitMap[h.restaurant] || 0) + 1;
-                }
-            });
-            let topResArray = Object.entries(visitMap).sort((a, b) => b[1] - a[1]);
-            let maxVisits = topResArray[0] ? topResArray[0][1] : 1;
-            let resHtml = '';
-            for(let i=0; i<Math.min(3, topResArray.length); i++) {
-                let pct = (topResArray[i][1] / maxVisits) * 100;
-                resHtml += createRankRowHtml(i, topResArray[i][0], `총 ${topResArray[i][1]}회 방문`, pct, 'var(--warning)');
-            }
-            document.getElementById('statsTopRestaurants').innerHTML = resHtml;
-
-            let archiveWinnerMenuMap = {};
-            let allMenuMap = {}; 
-            let totalWinnerRestaurantMenus = 0;
-            
-            state.historyData.forEach(h => {
-                if(h.name !== "[사이드]") {
-                    let cleanMenu = h.menu.replace(' (곱빼기)','').trim();
-                    allMenuMap[cleanMenu] = (allMenuMap[cleanMenu] || 0) + 1;
-                    if(state.winner && h.restaurant === state.winner) {
-                        archiveWinnerMenuMap[cleanMenu] = (archiveWinnerMenuMap[cleanMenu] || 0) + 1;
-                        totalWinnerRestaurantMenus++;
-                    }
+                if(h.restaurant === state.winner) {
+                    let cleanMenu = h.menu.replace(' (곱빼기)', '').trim();
+                    archiveMenuMap[cleanMenu] = (archiveMenuMap[cleanMenu] || 0) + 1;
+                    totalArchiveCount++;
                 }
             });
 
-            let topAllMenuArray = Object.entries(allMenuMap).sort((a, b) => b[1] - a[1]);
-            let maxAllMenu = topAllMenuArray[0] ? topAllMenuArray[0][1] : 1;
-            let adminMenuHtml = '';
-            for(let i=0; i<Math.min(3, topAllMenuArray.length); i++) {
-                let pct = (topAllMenuArray[i][1] / maxAllMenu) * 100;
-                adminMenuHtml += createRankRowHtml(i, topAllMenuArray[i][0], `총 ${topAllMenuArray[i][1]}회 주문`, pct, 'var(--accent)');
-            }
-            document.getElementById('statsTopMenus').innerHTML = adminMenuHtml;
-
-            let topArchiveArray = Object.entries(archiveWinnerMenuMap).sort((a, b) => b[1] - a[1]);
+            let topArchiveArray = Object.entries(archiveMenuMap).sort((a, b) => b[1] - a[1]);
             let archiveHtml = '';
             if(topArchiveArray.length === 0) {
-                archiveHtml = `<div style="background: rgba(251, 165, 26, 0.05); border: 1px dashed rgba(251, 165, 26, 0.3); padding: 12px; border-radius: 12px; font-size:12px; color:#e2e8f0;">💡 <b>${state.winner || '이 식당'}</b>은 장부에 기록된 첫 방문입니다!</div>`;
+                archiveHtml = `<div style="color:#94a3b8; font-style:italic; padding: 10px 0;">⏳ ${state.winner || '이 식당'}의 방문 기록이 아직 없습니다.</div>`;
             } else {
                 for(let i=0; i<Math.min(3, topArchiveArray.length); i++) {
                     let count = topArchiveArray[i][1];
-                    let pct = totalWinnerRestaurantMenus > 0 ? (count / totalWinnerRestaurantMenus) * 100 : 0;
-                    archiveHtml += createRankRowHtml(i, topArchiveArray[i][0], `누적 ${count}회 주문됨`, pct, 'var(--warning)');
+                    let pct = totalArchiveCount > 0 ? (count / totalArchiveCount) * 100 : 0;
+                    archiveHtml += createRankRowHtml(i, topArchiveArray[i][0], `누적 ${count}회 주문`, pct, 'var(--warning)');
                 }
             }
             document.getElementById('userArchiveTopMenus').innerHTML = archiveHtml;
+
+            // 관리자용 분석 룸: 가장 자주 간 식당 TOP 3
+            let resFreqMap = {};
+            state.historyData.forEach(h => { resFreqMap[h.restaurant] = (resFreqMap[h.restaurant] || 0) + 1; });
+            let topResArray = Object.entries(resFreqMap).sort((a, b) => b[1] - a[1]);
+            let totalResLogs = state.historyData.length;
+            let resHtml = '';
+            for(let i=0; i<Math.min(3, topResArray.length); i++) {
+                let count = topResArray[i][1];
+                let pct = totalResLogs > 0 ? (count / totalResLogs) * 100 : 0;
+                resHtml += createRankRowHtml(i, topResArray[i][0], `총 ${count}회 방문`, pct, '#fba51a');
+            }
+            document.getElementById('statsTopRestaurants').innerHTML = resHtml;
+
+            // 관리자용 분석 룸: 팀 전체 역대 통합 메뉴 TOP 3
+            let globalMenuMap = {};
+            state.historyData.forEach(h => {
+                let cleanMenu = h.menu.replace(' (곱빼기)', '').trim();
+                globalMenuMap[cleanMenu] = (globalMenuMap[cleanMenu] || 0) + 1;
+            });
+            let topGlobalMenuArray = Object.entries(globalMenuMap).sort((a, b) => b[1] - a[1]);
+            let globalMenuHtml = '';
+            for(let i=0; i<Math.min(3, topGlobalMenuArray.length); i++) {
+                let count = topGlobalMenuArray[i][1];
+                let pct = totalResLogs > 0 ? (count / totalResLogs) * 100 : 0;
+                globalMenuHtml += createRankRowHtml(i, topGlobalMenuArray[i][0], `총 ${count}회 선택`, pct, 'var(--accent)');
+            }
+            document.getElementById('statsTopMenus').innerHTML = globalMenuHtml;
         }
 
-        function saveTodayHistory() {
-            let recordsToSave = [];
-            let unselectedUsers = []; 
-            let userOrdersMap = {};
-            state.orderData.forEach(order => {
-                if(!order.name.includes("[사이드]")) {
-                    if(!userOrdersMap[order.name]) userOrdersMap[order.name] = [];
-                    userOrdersMap[order.name].push(order);
+        async function sendVote() {
+            if(!selected.res) return;
+            document.getElementById('loading').classList.remove('hidden');
+            try {
+                const res = await fetch(`${GAS_URL}?type=vote&deviceId=${deviceId}&res=${encodeURIComponent(selected.res)}`);
+                const result = await res.json();
+                if(result.status === "SUCCESS") {
+                    alert(`✅ ${selected.res} 투표 완료!`);
+                    updateState();
                 }
-            });
+            } catch(e) { alert("투표 전송 중 에러 발생"); }
+            document.getElementById('loading').classList.add('hidden');
+        }
 
-            state.employees.forEach(empName => {
-                const isExcluded = excludedUsers.has(empName);
-                const hasOrdered = userOrdersMap[empName] && userOrdersMap[empName].length > 0;
-                
-                if (!isExcluded && !hasOrdered) unselectedUsers.push(empName);
-                if (!isExcluded && hasOrdered) {
-                    userOrdersMap[empName].forEach(o => { recordsToSave.push({ name: empName, menu: o.menu, price: o.price }); });
+        function startLocalTimer(endTimeStr) {
+            clearInterval(timerInterval);
+            if(!endTimeStr) return;
+            const timerEl = document.getElementById('voteTimer');
+            
+            function updateTimer() {
+                const now = new Date().getTime();
+                const diff = new Date(endTimeStr).getTime() - now;
+                if(diff <= 0) {
+                    clearInterval(timerInterval);
+                    timerEl.innerText = "00:00";
+                    updateState();
+                    return;
                 }
-            });
+                const m = Math.floor(diff / 60000).toString().padStart(2, '0');
+                const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
+                timerEl.innerText = `${m}:${s}`;
+            }
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
+        }
 
-            if (unselectedUsers.length > 0) {
-                alert(`⚠️ 아직 메뉴를 선택하지 않았거나 제외 처리가 되지 않은 팀원이 있습니다.\n\n대상자: [ ${unselectedUsers.join(', ')} ]`);
-                return;
+        async function submitOrder() {
+            if(!selected.user) return alert("❌ 성함을 먼저 선택해주세요!");
+            if(!selected.menu) return alert("❌ 메뉴를 선택해주세요!");
+            
+            let finalPrice = selected.price;
+            let menuDetails = [selected.menu];
+            let subOrders = [];
+
+            const doubleCb = document.getElementById('doubleSizeCb');
+            if(doubleCb && doubleCb.checked) {
+                finalPrice += selected.doubleFee;
             }
 
-            if(!confirm("현재 화면의 정산 인원과 메뉴 내역을 오늘 자 최종 기록으로 확정 저장하시겠습니까?")) return;
-
-            state.orderData.forEach((order, idx) => {
-                if (order.name.includes("[사이드]") && !excludedUsers.has(`side_${idx}`)) {
-                    recordsToSave.push({ name: "[사이드]", menu: order.menu, price: order.price });
-                }
-            });
-
-            fetch(GAS_URL, {
-                method: "POST",
-                body: JSON.stringify({ type: "ADMIN_SAVE_HISTORY", restaurant: state.winner, records: recordsToSave })
-            }).then(() => {
-                alert("오늘의 점심 최종 내역이 저장되었습니다!");
-                updateState();
-            });
-        }
-
-        function toggleExclude(key) {
-            if (excludedUsers.has(key)) { excludedUsers.delete(key); } 
-            else { excludedUsers.add(key); }
-            renderAdminDashboard();
-        }
-
-        function selectSide(obj) {
-            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ 
-                type: "ORDER", userName: `[사이드] ${obj.name}`, restaurant: state.winner, menu: obj.name, price: obj.price 
-            }) }).then(updateState);
-        }
-
-        function renderGrid(containerId, data, callback, isMenu = false) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
-            data.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'item';
-                div.innerText = isMenu ? `${item.name.replace(/\(곱빼기 가능:.*\)/g, '').trim()}\n${Number(item.price).toLocaleString()}원` : item;
-                div.onclick = () => {
-                    container.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
-                    div.classList.add('active');
-                    callback(item);
-                };
-                container.appendChild(div);
-            });
-        }
-
-        function randomMenuSlot() {
-            const items = document.querySelectorAll('#menuGrid .item');
-            if(!items.length) return;
-            const btn = document.getElementById('randomBtn');
-            btn.disabled = true; btn.innerText = "🎰 메뉴 셔플 중...";
-            
-            let count = 0; 
-            const maxRolls = 20; 
-            
-            const interval = setInterval(() => {
-                items.forEach(el => el.classList.remove('slot-rolling'));
-                
-                const randIdx1 = Math.floor(Math.random() * items.length);
-                const randIdx2 = Math.floor(Math.random() * items.length);
-                items[randIdx1].classList.add('slot-rolling');
-                items[randIdx2].classList.add('slot-rolling');
-                
-                if(count++ > maxRolls) {
-                    clearInterval(interval);
-                    items.forEach(el => el.classList.remove('slot-rolling'));
-                    
-                    const finalChoice = items[Math.floor(Math.random() * items.length)];
-                    finalChoice.click();
-                    
-                    finalChoice.style.transition = "0.3s";
-                    finalChoice.style.transform = "scale(1.1)";
-                    setTimeout(() => finalChoice.style.transform = "scale(1.0)", 300);
-
-                    btn.disabled = false; 
-                    btn.innerText = "🎲 슬롯머신 재가동";
-                }
-            }, 80); 
-        }
-
-        /* 🔥 [v10.6 수정 구역]: 타이머 종료 시 프론트엔드가 폭주하지 않고 백엔드 결정을 안전하게 동기화 대기 */
-        function startLocalTimer(endTime) {
-            if(timerInterval) clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                const diff = endTime - new Date().getTime();
-                
-                if(diff <= 0) { 
-                    clearInterval(timerInterval); 
-                    document.getElementById('voteTimer').innerText = "00:00";
-                    document.getElementById('loading').classList.remove('hidden'); // 주사위가 굴러가는 동안 임시 락업
-                    setTimeout(updateState, 1000); // 백엔드가 시트 셀에 winner를 박을 수 있는 1초 버퍼 생성
-                    return; 
-                }
-                
-                const m = Math.floor(diff / 60000), s = Math.floor((diff % 60000) / 1000);
-                document.getElementById('voteTimer').innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-            }, 200);
-        }
-
-        function startSystem() {
-            if(!confirm("모든 기록을 초기화하고 투표를 시작하시겠습니까?")) return;
-            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_START" }) }).then(() => {
-                alert("투표가 시작되었습니다!"); location.reload();
-            });
-        }
-
-        function sendVote() { fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) }); }
-        
-        function submitOrder() {
-            if(!selected.menu || !selected.user) return alert("이름과 메인 메뉴를 선택해주세요!");
-            let checkedSides = [];
             document.querySelectorAll('.pside-cb:checked').forEach(cb => {
-                checkedSides.push({ name: cb.getAttribute('data-name'), price: Number(cb.getAttribute('data-price')) });
+                const pName = cb.getAttribute('data-name');
+                const pPrice = Number(cb.getAttribute('data-price'));
+                menuDetails.push(pName.replace('(개인사이드)','').trim());
+                finalPrice += pPrice;
+                subOrders.push({ name: selected.user, menu: pName, price: pPrice });
             });
 
-            localStorage.setItem('ordered_6.0', 'true');
-            setFormDisabled(true);
-
-            let finalMainPrice = selected.price;
-            const doubleCb = document.getElementById('doubleSizeArea');
-            if(doubleCb && doubleCb.checked) { finalMainPrice += selected.doubleFee; }
-
-            fetch(GAS_URL, { 
-                method: "POST", 
-                body: JSON.stringify({ 
-                    type: "MULTI_ORDER", userName: selected.user, restaurant: state.winner, mainMenu: selected.menu, mainPrice: finalMainPrice, sides: checkedSides
-                }) 
-            }).then(updateState);
+            document.getElementById('loading').classList.remove('hidden');
+            try {
+                const mainRes = await fetch(`${GAS_URL}?type=order&name=${encodeURIComponent(selected.user)}&menu=${encodeURIComponent(selected.menu)}&price=${finalPrice}`);
+                const mainResult = await mainRes.json();
+                
+                if(mainResult.status === "SUCCESS") {
+                    for (let sub of subOrders) {
+                        await fetch(`${GAS_URL}?type=order&name=${encodeURIComponent(sub.name)}&menu=${encodeURIComponent(sub.menu)}&price=${sub.price}`);
+                    }
+                    localStorage.setItem('ordered_6.0', selected.user);
+                    setFormDisabled(true);
+                    alert("🎉 주문이 성공적으로 제출되었습니다!");
+                    updateState();
+                } else {
+                    alert("주문 제출에 실패했습니다: " + mainResult.message);
+                }
+            } catch(e) { alert("주문 처리 중 에러가 발생했습니다."); }
+            document.getElementById('loading').classList.add('hidden');
         }
 
-        function reOrder() { localStorage.removeItem('ordered_6.0'); setFormDisabled(false); updateState(); }
         function setFormDisabled(disabled) {
             document.getElementById('formContainer').classList.toggle('hidden', disabled);
             document.getElementById('orderedMsg').classList.toggle('hidden', !disabled);
+            if(disabled) {
+                const savedUser = localStorage.getItem('ordered_6.0') || '선택 완료';
+                document.getElementById('winnerTitle').innerText = `🏆 ${state.winner} (${savedUser})`;
+            }
         }
 
-        setInterval(updateState, 5000);
+        function reOrder() {
+            if(confirm("정말 메뉴를 다시 고르시겠습니까?")) {
+                localStorage.removeItem('ordered_6.0');
+                setFormDisabled(false);
+                selected = { res: null, user: null, menu: null, price: 0, rawMenuName: null, doubleFee: 0 };
+                document.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
+                updateState();
+            }
+        }
+
+        async function startSystem() {
+            if(!confirm("⚠️ 이전 데이터가 전부 초기화되고 새로운 투표가 시작됩니다. 진행할까요?")) return;
+            document.getElementById('loading').classList.remove('hidden');
+            try {
+                const res = await fetch(`${GAS_URL}?type=startSystem`);
+                const result = await res.json();
+                if(result.status === "SUCCESS") {
+                    alert("🚀 점심 시스템이 활성화되었습니다!");
+                    updateState();
+                }
+            } catch(e) { alert("시스템 시작 에러"); }
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        async function selectSide(obj) {
+            if(!confirm(`[사이드 일괄 추가]\n팀 전체 장부에 '${obj.name}'(${Number(obj.price).toLocaleString()}원)을 추가하겠습니까?`)) return;
+            document.getElementById('loading').classList.remove('hidden');
+            try {
+                const res = await fetch(`${GAS_URL}?type=order&name=${encodeURIComponent("[사이드]")}&menu=${encodeURIComponent(obj.name)}&price=${obj.price}`);
+                const result = await res.json();
+                if(result.status === "SUCCESS") {
+                    alert("✨ 일괄 사이드 메뉴가 장부에 반영되었습니다!");
+                    updateState();
+                }
+            } catch(e) { alert("사이드 반영 실패"); }
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        async function saveTodayHistory() {
+            if(!confirm("💾 현재 정산 테이블 기준으로 오늘의 점심 장부를 최종 확정하고 누적 기록에 저장하시겠습니까?\n(저장 후 즉시 시스템은 대기 상태로 초기화됩니다)")) return;
+            document.getElementById('loading').classList.remove('hidden');
+            
+            let excludedList = Array.from(excludedUsers).join(',');
+            try {
+                const res = await fetch(`${GAS_URL}?type=saveHistory&excluded=${encodeURIComponent(excludedList)}`);
+                const result = await res.json();
+                if(result.status === "SUCCESS") {
+                    alert("💾 오늘의 기록이 데이터 장부에 영구 저장되었습니다! 대시보드가 대기 상태로 전환됩니다.");
+                    localStorage.removeItem('ordered_6.0');
+                    excludedUsers.clear();
+                    state.orderData = [];
+                    updateState();
+                } else { alert("기록 저장 실패: " + result.message); }
+            } catch(e) { alert("정산 확정 통신 에러 발생"); }
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        function randomMenuSlot() {
+            const menuItems = document.querySelectorAll('#menuGrid .item');
+            if(!menuItems.length) return alert("선택 가능한 메뉴가 없습니다.");
+            
+            let count = 0;
+            let interval = setInterval(() => {
+                let randomIdx = Math.floor(Math.random() * menuItems.length);
+                menuItems.forEach(el => el.classList.remove('slot-rolling'));
+                menuItems[randomIdx].classList.add('slot-rolling');
+                count++;
+                if(count > 15) {
+                    clearInterval(interval);
+                    menuItems.forEach(el => el.classList.remove('slot-rolling'));
+                    menuItems[randomIdx].click();
+                    alert(`🎲 슬롯머신 추천 결과: [${menuItems[randomIdx].innerText.split('\n')[0]}] 어떠세요?`);
+                }
+            }, 100);
+        }
+
+        // 초기 구동
         updateState();
+        setInterval(updateState, 15000); // 15초 주기 백그라운드 자동 동기화
     </script>
 </body>
 </html>
