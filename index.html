@@ -15,7 +15,6 @@
         .item { background: #0f172a; padding: 18px; border-radius: 16px; border: 2px solid #334155; cursor: pointer; transition: 0.1s; position: relative; }
         .item.active { background: var(--primary); color: #0f172a; font-weight: bold; border-color: var(--primary); }
         .btn-main { width: 100%; padding: 16px; background: var(--primary); color: #0f172a; border: none; border-radius: 16px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
-        .btn-main:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
         .btn-sub { width: 100%; padding: 10px; background: #334155; color: white; border: 1px solid #475569; border-radius: 10px; font-size: 13px; font-weight: bold; cursor: pointer; margin-bottom: 12px; }
         .progress-container { width: 100%; background: #334155; height: 8px; border-radius: 4px; margin-top: 10px; overflow: hidden; }
         .progress-bar { height: 100%; background: var(--primary); transition: 0.3s; width: 0%; }
@@ -46,17 +45,17 @@
         .rank-badge.rank1 { background: var(--primary); }
         .rank-badge.rank2 { background: var(--info); }
         .rank-badge.rank3 { background: var(--warning); }
-        .rank-menu-name { color: #ffffff; flex: 1; margin-left: 8px; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .rank-menu-name { color: #ffffff; flex: 1; margin-left: 8px; font-size: 13px; }
         .rank-count-val { font-size: 12px; color: #94a3b8; font-weight: bold; }
         .rank-mini-progress { width: 100%; height: 5px; background: #1e293b; border-radius: 3px; overflow: hidden; }
         .rank-mini-bar { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
         
         @keyframes slotBlurEffect {
             0% { transform: scale(1.0); filter: blur(0px); background: #0f172a; border-color: #334155; }
-            50% { transform: scale(1.05); filter: blur(2px); background: rgba(244, 63, 94, 0.3); border-color: var(--accent); color: #ffffff; }
+            50% { transform: scale(1.05); filter: blur(1px); background: rgba(0, 255, 136, 0.2); border-color: var(--primary); color: #ffffff; }
             100% { transform: scale(1.0); filter: blur(0px); background: #0f172a; border-color: #334155; }
         }
-        .slot-rolling { animation: slotBlurEffect 0.12s infinite alternate; z-index: 10; box-shadow: 0 0 15px rgba(244, 63, 94, 0.4); }
+        .slot-rolling { animation: slotBlurEffect 0.1s infinite alternate; z-index: 10; box-shadow: 0 0 15px rgba(0, 255, 136, 0.4); }
     </style>
 </head>
 <body>
@@ -90,7 +89,7 @@
                 <div id="formContainer">
                     <div class="grid" id="userGrid"></div>
                     <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
-                    <button id="randomBtn" class="lucky-btn" onclick="randomMenuSlot()">🎲 결정 장애? 슬롯머신!</button>
+                    <button id="randomBtn" class="lucky-btn" onclick="randomMenuSlot()">🎲 결정 장애? 한번 눌러보세요!</button>
                     <div class="grid" id="menuGrid"></div>
                     
                     <div id="doubleSizeArea" class="pside-container hidden" style="border-color: var(--primary);">
@@ -101,7 +100,7 @@
                     </div>
 
                     <div id="personalSideArea" class="pside-container hidden">
-                        <span style="font-size:13px; color:var(--primary); font-weight:bold;">🥤 추가 선택 (선택 사항)</span>
+                        <label style="font-size:13px; color:var(--primary); font-weight:bold;">🥤 추가 선택 (선택 사항)</label>
                         <div id="personalSideList" style="margin-top:8px;"></div>
                     </div>
 
@@ -191,7 +190,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwSe-SR_z8BEw5r7HADR7UBssivqrC1QIKDnRMK99S5ZjexTpV9lVxRmDZ37-f1ZsfF/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwh1dUhHDMr43q2rS43Z4JrueZLuj1T5kJ2FYYi7oV7lzbbFoN86gCMrmEEozjdAHKqAA/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -211,28 +210,7 @@
                     renderAdminDashboard();
                     renderHistoryLogRoom();
                 }
-            } catch (e) {
-                console.error("데이터 동기화 실패:", e);
-            }
-        }
-
-        function renderGrid(id, list, callback, isObj = false) {
-            const container = document.getElementById(id);
-            container.innerHTML = '';
-            list.forEach(item => {
-                const div = document.createElement('div');
-                div.className = 'item';
-                const displayName = isObj ? item.name.replace(/\(곱빼기 가능:.*\)/g, '').trim() : item;
-                const displayPrice = isObj ? `\n<span style="font-size:12px;color:#94a3b8;">${Number(item.price).toLocaleString()}원</span>` : '';
-                div.innerHTML = displayName.replace('\n','') + displayPrice;
-                
-                div.onclick = () => {
-                    container.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
-                    div.classList.add('active');
-                    callback(item);
-                };
-                container.appendChild(div);
-            });
+            } catch (e) {}
         }
 
         function copyLaunchNotice() {
@@ -270,14 +248,14 @@
                 if(!document.getElementById('resGrid').children.length) 
                     renderGrid('resGrid', state.restaurants, (v) => { selected.res = v; sendVote(); });
                 startLocalTimer(state.endTime);
-                const percent = state.totalCount > 0 ? (state.voteCount / state.totalCount) * 100 : 0;
+                const percent = (state.voteCount / state.totalCount) * 100;
                 document.getElementById('voteProgress').style.width = percent + '%';
                 document.getElementById('voteCountText').innerText = `참여 현황: ${state.voteCount} / ${state.totalCount}`;
             } else if(state.status === "ORDERING") {
                 document.getElementById('orderingSection').classList.remove('hidden');
                 document.getElementById('winnerTitle').innerText = `🏆 ${state.winner}`;
                 
-                const isOrdered = localStorage.getItem('ordered_6.0');
+                const isOrdered = localStorage.getItem('ordered_10.5');
                 if(!document.getElementById('userGrid').children.length) {
                     renderGrid('userGrid', state.employees, (v) => {
                         selected.user = v;
@@ -301,6 +279,22 @@
                 }
                 setFormDisabled(!!isOrdered);
             }
+        }
+
+        function renderGrid(targetId, list, callback, isObjList = false) {
+            const grid = document.getElementById(targetId);
+            grid.innerHTML = '';
+            list.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.innerText = isObjList ? `${item.name}\n(${Number(item.price).toLocaleString()}원)` : item;
+                div.onclick = () => {
+                    grid.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
+                    div.classList.add('active');
+                    callback(item);
+                };
+                grid.appendChild(div);
+            });
         }
 
         function highlightRecentMenu() {
@@ -350,10 +344,13 @@
         }
 
         function switchAdminTab(tabNum) {
-            for(let i=1; i<=3; i++) {
-                document.getElementById(`tabBtn${i}`).classList.toggle('active', tabNum === i);
-                document.getElementById(`adminTabContent${i}`).classList.toggle('hidden', tabNum !== i);
-            }
+            document.getElementById('tabBtn1').classList.toggle('active', tabNum === 1);
+            document.getElementById('tabBtn2').classList.toggle('active', tabNum === 2);
+            document.getElementById('tabBtn3').classList.toggle('active', tabNum === 3);
+            
+            document.getElementById('adminTabContent1').classList.toggle('hidden', tabNum !== 1);
+            document.getElementById('adminTabContent2').classList.toggle('hidden', tabNum !== 2);
+            document.getElementById('adminTabContent3').classList.toggle('hidden', tabNum !== 3);
         }
 
         function renderAdminDashboard() {
@@ -454,12 +451,6 @@
             document.getElementById('adminSummary').innerHTML = summaryHtml;
         }
 
-        function toggleExclude(key) {
-            if(excludedUsers.has(key)) excludedUsers.delete(key);
-            else excludedUsers.add(key);
-            renderAdminDashboard();
-        }
-
         function renderHistoryLogRoom() {
             if(!state.historyData || state.historyData.length === 0) return;
             const resSelect = document.getElementById('filterRestaurant');
@@ -526,7 +517,7 @@
         }
 
         function calculateAdvancedStats() {
-            // 1. 오늘 실시간 인기 메뉴 TOP 3 연산 및 렌더링
+            // 1. 오늘 현재 실시간 투표 선택 현황 연산 및 그래프 그리기
             let liveMenuMap = {};
             let totalLiveOrders = 0;
             if(state.orderData && state.orderData.length > 0) {
@@ -552,236 +543,276 @@
             }
             document.getElementById('userLiveTopMenus').innerHTML = liveHtml;
 
-            // 2. 과거 장부 기록 데이터 기반 역대 통계 연산
+            // 2. 과거 장부 기록 기반 분석 연산
             if (!state.historyData || state.historyData.length === 0) {
                 const noLogMsg = '<div style="color:#94a3b8; font-style:italic; padding: 10px 0;">데이터가 부족하여 통계를 낼 수 없습니다.</div>';
-                document.getElementById('userArchiveTopMenus').innerHTML = noLogMsg;
+                document.getElementById('totalLogCountText').innerText = "* 누적 데이터 없음";
                 document.getElementById('statsTopRestaurants').innerHTML = noLogMsg;
                 document.getElementById('statsTopMenus').innerHTML = noLogMsg;
-                document.getElementById('totalLogCountText').innerText = "* 누적 데이터 없음";
+                document.getElementById('userArchiveTopMenus').innerHTML = noLogMsg;
                 return;
             }
 
-            document.getElementById('totalLogCountText').innerText = `* 총 ${state.historyData.length}건의 누적 주문 데이터를 바탕으로 실시간 자동 연산됨`;
+            document.getElementById('totalLogCountText').innerText = `* 총 ${state.historyData.length}개의 누적 데이터 기반 분석 완료`;
 
-            // 오늘 확정된 식당의 역대 누적 인기 메뉴 TOP 3
+            // 이 집(현재 선정된 식당)의 누적 인기 메뉴 연산
             let archiveMenuMap = {};
-            let totalArchiveCount = 0;
-            state.historyData.forEach(h => {
-                if(h.restaurant === state.winner) {
-                    let cleanMenu = h.menu.replace(' (곱빼기)', '').trim();
-                    archiveMenuMap[cleanMenu] = (archiveMenuMap[cleanMenu] || 0) + 1;
-                    totalArchiveCount++;
-                }
+            let totalArchiveMenus = 0;
+            state.historyData.filter(h => h.restaurant === state.winner).forEach(h => {
+                let cleanMenu = h.menu.replace(' (곱빼기)','').trim();
+                archiveMenuMap[cleanMenu] = (archiveMenuMap[cleanMenu] || 0) + 1;
+                totalArchiveMenus++;
             });
 
             let topArchiveArray = Object.entries(archiveMenuMap).sort((a, b) => b[1] - a[1]);
             let archiveHtml = '';
             if(topArchiveArray.length === 0) {
-                archiveHtml = `<div style="color:#94a3b8; font-style:italic; padding: 10px 0;">⏳ ${state.winner || '이 식당'}의 방문 기록이 아직 없습니다.</div>`;
+                archiveHtml = '<div style="color:#94a3b8; font-style:italic; padding: 10px 0;">이 식당의 방문 기록이 아직 없습니다.</div>';
             } else {
                 for(let i=0; i<Math.min(3, topArchiveArray.length); i++) {
                     let count = topArchiveArray[i][1];
-                    let pct = totalArchiveCount > 0 ? (count / totalArchiveCount) * 100 : 0;
+                    let pct = totalArchiveMenus > 0 ? (count / totalArchiveMenus) * 100 : 0;
                     archiveHtml += createRankRowHtml(i, topArchiveArray[i][0], `누적 ${count}회 주문`, pct, 'var(--warning)');
                 }
             }
             document.getElementById('userArchiveTopMenus').innerHTML = archiveHtml;
 
-            // 관리자용 분석 룸: 가장 자주 간 식당 TOP 3
-            let resFreqMap = {};
-            state.historyData.forEach(h => { resFreqMap[h.restaurant] = (resFreqMap[h.restaurant] || 0) + 1; });
-            let topResArray = Object.entries(resFreqMap).sort((a, b) => b[1] - a[1]);
-            let totalResLogs = state.historyData.length;
-            let resHtml = '';
+            // 관리자 탭3 전용: 가장 자주 간 식당 TOP 3 연산
+            let resMap = {};
+            let uniqueDatesMap = {};
+            state.historyData.forEach(h => {
+                if(!uniqueDatesMap[h.date]) uniqueDatesMap[h.date] = {};
+                uniqueDatesMap[h.date][h.restaurant] = true;
+            });
+            Object.values(uniqueDatesMap).forEach(resObj => {
+                Object.keys(resObj).forEach(rName => { resMap[rName] = (resMap[rName] || 0) + 1; });
+            });
+            let topResArray = Object.entries(resMap).sort((a, b) => b[1] - a[1]);
+            let totalDays = Object.keys(uniqueDatesMap).length;
+            let statsResHtml = '';
             for(let i=0; i<Math.min(3, topResArray.length); i++) {
                 let count = topResArray[i][1];
-                let pct = totalResLogs > 0 ? (count / totalResLogs) * 100 : 0;
-                resHtml += createRankRowHtml(i, topResArray[i][0], `총 ${count}회 방문`, pct, '#fba51a');
+                let pct = totalDays > 0 ? (count / totalDays) * 100 : 0;
+                statsResHtml += createRankRowHtml(i, topResArray[i][0], `총 ${count}회 방문`, pct, '#fba51a');
             }
-            document.getElementById('statsTopRestaurants').innerHTML = resHtml;
+            document.getElementById('statsTopRestaurants').innerHTML = statsResHtml;
 
-            // 관리자용 분석 룸: 팀 전체 역대 통합 메뉴 TOP 3
-            let globalMenuMap = {};
+            // 관리자 탭3 전용: 팀 전체 통합 역대 메뉴 TOP 3 연산
+            let totalMenuMap = {};
+            let totalCountAll = 0;
             state.historyData.forEach(h => {
-                let cleanMenu = h.menu.replace(' (곱빼기)', '').trim();
-                globalMenuMap[cleanMenu] = (globalMenuMap[cleanMenu] || 0) + 1;
+                let cleanMenu = h.menu.replace(' (곱빼기)','').trim();
+                totalMenuMap[cleanMenu] = (totalMenuMap[cleanMenu] || 0) + 1;
+                totalCountAll++;
             });
-            let topGlobalMenuArray = Object.entries(globalMenuMap).sort((a, b) => b[1] - a[1]);
-            let globalMenuHtml = '';
-            for(let i=0; i<Math.min(3, topGlobalMenuArray.length); i++) {
-                let count = topGlobalMenuArray[i][1];
-                let pct = totalResLogs > 0 ? (count / totalResLogs) * 100 : 0;
-                globalMenuHtml += createRankRowHtml(i, topGlobalMenuArray[i][0], `총 ${count}회 선택`, pct, 'var(--accent)');
+            let topTotalMenuArray = Object.entries(totalMenuMap).sort((a, b) => b[1] - a[1]);
+            let statsMenuHtml = '';
+            for(let i=0; i<Math.min(3, topTotalMenuArray.length); i++) {
+                let count = topTotalMenuArray[i][1];
+                let pct = totalCountAll > 0 ? (count / totalCountAll) * 100 : 0;
+                statsMenuHtml += createRankRowHtml(i, topTotalMenuArray[i][0], `총 ${count}회 선택`, pct, 'var(--accent)');
             }
-            document.getElementById('statsTopMenus').innerHTML = globalMenuHtml;
+            document.getElementById('statsTopMenus').innerHTML = statsMenuHtml;
         }
 
-        async function sendVote() {
-            if(!selected.res) return;
-            document.getElementById('loading').classList.remove('hidden');
-            try {
-                const res = await fetch(`${GAS_URL}?type=vote&deviceId=${deviceId}&res=${encodeURIComponent(selected.res)}`);
-                const result = await res.json();
-                if(result.status === "SUCCESS") {
-                    alert(`✅ ${selected.res} 투표 완료!`);
-                    updateState();
-                }
-            } catch(e) { alert("투표 전송 중 에러 발생"); }
-            document.getElementById('loading').classList.add('hidden');
+        function toggleExclude(userKey) {
+            if (excludedUsers.has(userKey)) { excludedUsers.delete(userKey); } 
+            else { excludedUsers.add(userKey); }
+            renderAdminDashboard();
         }
 
-        function startLocalTimer(endTimeStr) {
-            clearInterval(timerInterval);
-            if(!endTimeStr) return;
-            const timerEl = document.getElementById('voteTimer');
-            
+        function startLocalTimer(endTime) {
+            if(timerInterval) clearInterval(timerInterval);
             function updateTimer() {
                 const now = new Date().getTime();
-                const diff = new Date(endTimeStr).getTime() - now;
+                const diff = endTime - now;
                 if(diff <= 0) {
                     clearInterval(timerInterval);
-                    timerEl.innerText = "00:00";
+                    document.getElementById('voteTimer').innerText = "00:00";
                     updateState();
                     return;
                 }
-                const m = Math.floor(diff / 60000).toString().padStart(2, '0');
-                const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0');
-                timerEl.innerText = `${m}:${s}`;
+                const m = String(Math.floor(diff / 60000)).padStart(2, '0');
+                const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+                document.getElementById('voteTimer').innerText = `${m}:${s}`;
             }
             updateTimer();
             timerInterval = setInterval(updateTimer, 1000);
         }
 
-        async function submitOrder() {
-            if(!selected.user) return alert("❌ 성함을 먼저 선택해주세요!");
-            if(!selected.menu) return alert("❌ 메뉴를 선택해주세요!");
+        async function startSystem() {
+            if(!confirm("🚀 정말 새로운 점심 투표를 활성화하시겠습니까?\n기존 오늘 데이터는 초기화됩니다.")) return;
+            document.getElementById('loading').classList.remove('hidden');
+            const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_START" }) });
+            const d = await res.json();
+            if(d.result === "success") { alert("투표가 시작되었습니다!"); updateState(); }
+        }
+
+        async function sendVote() {
+            if(!selected.res) return alert("식당을 선택해 주세요!");
+            document.getElementById('loading').classList.remove('hidden');
+            await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) });
+            alert(`👍 [${selected.res}] 투표 완료! 다른 인원들의 투표 마감을 대기합니다.`);
+            updateState();
+        }
+
+        function randomMenuSlot() {
+            if(!state.menus || state.menus.length === 0) return;
+            const btn = document.getElementById('randomBtn');
+            const menuItems = document.querySelectorAll('#menuGrid .item');
+            if(menuItems.length === 0) return;
             
-            let finalPrice = selected.price;
-            let menuDetails = [selected.menu];
-            let subOrders = [];
+            btn.disabled = true;
+            let counter = 0;
+            const duration = 1500; 
+            const intervalTime = 80;
+            
+            const interval = setInterval(() => {
+                menuItems.forEach(el => el.classList.remove('slot-rolling'));
+                const randomIdx = Math.floor(Math.random() * menuItems.length);
+                menuItems[randomIdx].classList.add('slot-rolling');
+                counter += intervalTime;
+                
+                if(counter >= duration) {
+                    clearInterval(interval);
+                    menuItems.forEach(el => el.classList.remove('slot-rolling'));
+                    
+                    const finalIdx = Math.floor(Math.random() * state.menus.length);
+                    menuItems[finalIdx].click(); // 무작위 아이템 최종 클릭 선택 유도
+                    btn.disabled = false;
+                    alert(`🎲 오늘의 추천 메뉴는 [${state.menus[finalIdx].name}] 입니다!`);
+                }
+            }, intervalTime);
+        }
 
-            const doubleCb = document.getElementById('doubleSizeCb');
-            if(doubleCb && doubleCb.checked) {
-                finalPrice += selected.doubleFee;
-            }
-
-            document.querySelectorAll('.pside-cb:checked').forEach(cb => {
-                const pName = cb.getAttribute('data-name');
-                const pPrice = Number(cb.getAttribute('data-price'));
-                menuDetails.push(pName.replace('(개인사이드)','').trim());
-                finalPrice += pPrice;
-                subOrders.push({ name: selected.user, menu: pName, price: pPrice });
-            });
+        async function submitOrder() {
+            if(!selected.user) return alert("성함을 선택해 주세요!");
+            if(!selected.menu) return alert("메뉴를 선택해 주세요!");
 
             document.getElementById('loading').classList.remove('hidden');
-            try {
-                const mainRes = await fetch(`${GAS_URL}?type=order&name=${encodeURIComponent(selected.user)}&menu=${encodeURIComponent(selected.menu)}&price=${finalPrice}`);
-                const mainResult = await mainRes.json();
-                
-                if(mainResult.status === "SUCCESS") {
-                    for (let sub of subOrders) {
-                        await fetch(`${GAS_URL}?type=order&name=${encodeURIComponent(sub.name)}&menu=${encodeURIComponent(sub.menu)}&price=${sub.price}`);
-                    }
-                    localStorage.setItem('ordered_6.0', selected.user);
-                    setFormDisabled(true);
-                    alert("🎉 주문이 성공적으로 제출되었습니다!");
-                    updateState();
-                } else {
-                    alert("주문 제출에 실패했습니다: " + mainResult.message);
-                }
-            } catch(e) { alert("주문 처리 중 에러가 발생했습니다."); }
-            document.getElementById('loading').classList.add('hidden');
+
+            const isDoubleChecked = document.getElementById('doubleSizeCb')?.checked;
+            let finalPrice = selected.price + (isDoubleChecked ? selected.doubleFee : 0);
+
+            // 체크된 개인 사이드 수집
+            let selectedSides = [];
+            const sideCbs = document.querySelectorAll('.pside-cb:checked');
+            sideCbs.forEach(cb => {
+                selectedSides.push({
+                    name: cb.getAttribute('data-name'),
+                    price: Number(cb.getAttribute('data-price'))
+                });
+            });
+
+            let payload = {};
+            if(selectedSides.length > 0) {
+                payload = {
+                    type: "MULTI_ORDER",
+                    userName: selected.user,
+                    restaurant: state.winner,
+                    mainMenu: selected.menu,
+                    mainPrice: finalPrice,
+                    sides: selectedSides
+                };
+            } else {
+                payload = {
+                    type: "ORDER",
+                    userName: selected.user,
+                    restaurant: state.winner,
+                    menu: selected.menu,
+                    price: finalPrice
+                };
+            }
+
+            const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
+            const d = await res.json();
+            if(d.result === "success") {
+                localStorage.setItem('ordered_10.5', 'true');
+                setFormDisabled(true);
+                alert("✨ 주문 제출이 완료되었습니다!");
+                updateState();
+            }
         }
 
         function setFormDisabled(disabled) {
             document.getElementById('formContainer').classList.toggle('hidden', disabled);
             document.getElementById('orderedMsg').classList.toggle('hidden', !disabled);
-            if(disabled) {
-                const savedUser = localStorage.getItem('ordered_6.0') || '선택 완료';
-                document.getElementById('winnerTitle').innerText = `🏆 ${state.winner} (${savedUser})`;
-            }
         }
 
         function reOrder() {
             if(confirm("정말 메뉴를 다시 고르시겠습니까?")) {
-                localStorage.removeItem('ordered_6.0');
+                localStorage.removeItem('ordered_10.5');
                 setFormDisabled(false);
-                selected = { res: null, user: null, menu: null, price: 0, rawMenuName: null, doubleFee: 0 };
+                // 기존 활성화 클래스 초기화
                 document.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
-                updateState();
+                selected = { res: null, user: null, menu: null, price: 0, rawMenuName: null, doubleFee: 0 };
             }
         }
 
-        async function startSystem() {
-            if(!confirm("⚠️ 이전 데이터가 전부 초기화되고 새로운 투표가 시작됩니다. 진행할까요?")) return;
-            document.getElementById('loading').classList.remove('hidden');
-            try {
-                const res = await fetch(`${GAS_URL}?type=startSystem`);
-                const result = await res.json();
-                if(result.status === "SUCCESS") {
-                    alert("🚀 점심 시스템이 활성화되었습니다!");
-                    updateState();
-                }
-            } catch(e) { alert("시스템 시작 에러"); }
-            document.getElementById('loading').classList.add('hidden');
-        }
-
         async function selectSide(obj) {
-            if(!confirm(`[사이드 일괄 추가]\n팀 전체 장부에 '${obj.name}'(${Number(obj.price).toLocaleString()}원)을 추가하겠습니까?`)) return;
+            const adminSideCommentName = `[사이드] ${obj.name.replace('(사이드)','').trim()}`;
+            if(!confirm(`[${adminSideCommentName}] 메뉴를 일괄 추가 주문 목록에 삽입하시겠습니까?`)) return;
+            
             document.getElementById('loading').classList.remove('hidden');
-            try {
-                const res = await fetch(`${GAS_URL}?type=order&name=${encodeURIComponent("[사이드]")}&menu=${encodeURIComponent(obj.name)}&price=${obj.price}`);
-                const result = await res.json();
-                if(result.status === "SUCCESS") {
-                    alert("✨ 일괄 사이드 메뉴가 장부에 반영되었습니다!");
-                    updateState();
-                }
-            } catch(e) { alert("사이드 반영 실패"); }
-            document.getElementById('loading').classList.add('hidden');
+            const payload = {
+                type: "ORDER",
+                userName: adminSideCommentName,
+                restaurant: state.winner,
+                menu: obj.name,
+                price: Number(obj.price)
+            };
+            await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
+            updateState();
         }
 
         async function saveTodayHistory() {
-            if(!confirm("💾 현재 정산 테이블 기준으로 오늘의 점심 장부를 최종 확정하고 누적 기록에 저장하시겠습니까?\n(저장 후 즉시 시스템은 대기 상태로 초기화됩니다)")) return;
+            if(!confirm("⚠️ 오늘 확정된 실시간 정산 명단을 구글 시트 역대 장부(History)에 누적 기록합니까?\n(오늘 날짜에 이미 기록된 내역이 있다면 자동 덮어쓰기됩니다)")) return;
+            
             document.getElementById('loading').classList.remove('hidden');
+            let finalRecords = [];
+            let userOrdersMap = {};
             
-            let excludedList = Array.from(excludedUsers).join(',');
-            try {
-                const res = await fetch(`${GAS_URL}?type=saveHistory&excluded=${encodeURIComponent(excludedList)}`);
-                const result = await res.json();
-                if(result.status === "SUCCESS") {
-                    alert("💾 오늘의 기록이 데이터 장부에 영구 저장되었습니다! 대시보드가 대기 상태로 전환됩니다.");
-                    localStorage.removeItem('ordered_6.0');
-                    excludedUsers.clear();
-                    state.orderData = [];
-                    updateState();
-                } else { alert("기록 저장 실패: " + result.message); }
-            } catch(e) { alert("정산 확정 통신 에러 발생"); }
-            document.getElementById('loading').classList.add('hidden');
-        }
-
-        function randomMenuSlot() {
-            const menuItems = document.querySelectorAll('#menuGrid .item');
-            if(!menuItems.length) return alert("선택 가능한 메뉴가 없습니다.");
-            
-            let count = 0;
-            let interval = setInterval(() => {
-                let randomIdx = Math.floor(Math.random() * menuItems.length);
-                menuItems.forEach(el => el.classList.remove('slot-rolling'));
-                menuItems[randomIdx].classList.add('slot-rolling');
-                count++;
-                if(count > 15) {
-                    clearInterval(interval);
-                    menuItems.forEach(el => el.classList.remove('slot-rolling'));
-                    menuItems[randomIdx].click();
-                    alert(`🎲 슬롯머신 추천 결과: [${menuItems[randomIdx].innerText.split('\n')[0]}] 어떠세요?`);
+            state.orderData.forEach(order => {
+                if(!order.name.includes("[사이드]")) {
+                    if(!userOrdersMap[order.name]) userOrdersMap[order.name] = [];
+                    userOrdersMap[order.name].push(order);
                 }
-            }, 100);
+            });
+
+            state.employees.forEach(empName => {
+                if(!excludedUsers.has(empName)) {
+                    const orders = userOrdersMap[empName] || [];
+                    orders.forEach(o => {
+                        finalRecords.push({ name: empName, menu: o.menu, price: Number(o.price) });
+                    });
+                }
+            });
+
+            state.orderData.forEach((order, idx) => {
+                if (order.name.includes("[사이드]") && !excludedUsers.has(`side_${idx}`)) {
+                    finalRecords.push({ name: order.name, menu: order.menu, price: Number(order.price) });
+                }
+            });
+
+            if(finalRecords.length === 0) {
+                document.getElementById('loading').classList.add('hidden');
+                return alert("기록할 주문 대상자가 없습니다.");
+            }
+
+            const payload = {
+                type: "ADMIN_SAVE_HISTORY",
+                restaurant: state.winner,
+                records: finalRecords
+            };
+
+            const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
+            const d = await res.json();
+            if(d.result === "success") { alert("💾 오늘의 점심 장부 기록이 최종 마감 및 안전하게 백업되었습니다!"); updateState(); }
         }
 
-        // 초기 구동
+        // 초기 시작 및 8초 주기로 실시간 화면 동기화 폴링 자동화
         updateState();
-        setInterval(updateState, 15000); // 15초 주기 백그라운드 자동 동기화
+        setInterval(updateState, 8000);
     </script>
 </body>
 </html>
