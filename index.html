@@ -31,13 +31,11 @@
         .pside-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 14px; }
         .pside-item input { transform: scale(1.2); margin-right: 8px; cursor: pointer; }
         
-        /* 상단 탭 내비게이션 바 스타일 */
         .admin-navbar { display: flex; background: #0f172a; border-radius: 16px; padding: 5px; margin-bottom: 15px; border: 1px solid #334155; gap: 4px; }
         .admin-nav-item { flex: 1; padding: 12px 6px; text-align: center; cursor: pointer; font-size: 13px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; }
         .admin-nav-item.active { background: var(--primary); color: #0f172a; }
         .badge-recent { position: absolute; top: 5px; right: 5px; background: var(--warning); color: #0f172a; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 8px; }
         
-        /* 📊 직관적인 순위 통계 비주얼 보드 레이아웃 */
         .rank-card-list { display: flex; flex-direction: column; gap: 8px; margin-top: 5px; }
         .rank-card-row { background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; padding: 10px 14px; border-radius: 12px; display: flex; flex-direction: column; text-align: left; }
         .rank-card-top { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
@@ -214,11 +212,19 @@
         }
 
         function copyLaunchNotice() {
-            const dateStr = state.sysDate || `${new Date().getMonth()+1}.${new Date().getDate()}`;
-            const link = window.location.href.split('?')[0];
-            const text = `${dateStr} 회계팀 점심 투표의 건 (식당 투표는 2분 후 마감)\n\n안녕하십니까 회계팀 구수완입니다!\n\n금일 점심 투표를 진행하고자 하오니 아래 링크를 클릭하시어\n투표 및 메뉴 선택을 진행해주시기 바랍니다!\n\n링크: ${link}\n\n감사합니다.\n구수완 올림`;
+            // 시스템에 오늘 날짜 데이터가 있다면 사용하고, 없다면 실행 기준 월.일 연동
+            let dateStr = "";
+            if (state.sysDate) {
+                dateStr = state.sysDate;
+            } else {
+                const today = new Date();
+                dateStr = `${today.getMonth() + 1}.${today.getDate()}`;
+            }
+            
+            const text = `${dateStr} 회계팀 점심 투표의 건 \n\n안녕하십니까 회계팀 구수완입니다! \n\n금일 점심 투표을 진행하고자 하오니 아래 링크를 클릭하시어\n투표 및 메뉴 선택을 진행해주시기 바랍니다! (식당 투표는 2분 후 마감)\n\n링크: https://gsw970303-code.github.io/my-vote/\n\n감사합니다.\n구수완 올림`;
+            
             navigator.clipboard.writeText(text);
-            alert("📋 투표 시작 안내 문구가 클립보드에 복사되었습니다.");
+            alert("📋 변경된 투표 안내 문구가 클립보드에 복사되었습니다.");
         }
 
         function copyRecallNotice() {
@@ -517,7 +523,6 @@
         }
 
         function calculateAdvancedStats() {
-            // 1. 오늘 현재 실시간 투표 선택 현황 연산 및 그래프 그리기
             let liveMenuMap = {};
             let totalLiveOrders = 0;
             if(state.orderData && state.orderData.length > 0) {
@@ -543,7 +548,6 @@
             }
             document.getElementById('userLiveTopMenus').innerHTML = liveHtml;
 
-            // 2. 과거 장부 기록 기반 분석 연산
             if (!state.historyData || state.historyData.length === 0) {
                 const noLogMsg = '<div style="color:#94a3b8; font-style:italic; padding: 10px 0;">데이터가 부족하여 통계를 낼 수 없습니다.</div>';
                 document.getElementById('totalLogCountText').innerText = "* 누적 데이터 없음";
@@ -555,7 +559,6 @@
 
             document.getElementById('totalLogCountText').innerText = `* 총 ${state.historyData.length}개의 누적 데이터 기반 분석 완료`;
 
-            // 이 집(현재 선정된 식당)의 누적 인기 메뉴 연산
             let archiveMenuMap = {};
             let totalArchiveMenus = 0;
             state.historyData.filter(h => h.restaurant === state.winner).forEach(h => {
@@ -577,7 +580,6 @@
             }
             document.getElementById('userArchiveTopMenus').innerHTML = archiveHtml;
 
-            // 관리자 탭3 전용: 가장 자주 간 식당 TOP 3 연산
             let resMap = {};
             let uniqueDatesMap = {};
             state.historyData.forEach(h => {
@@ -597,7 +599,6 @@
             }
             document.getElementById('statsTopRestaurants').innerHTML = statsResHtml;
 
-            // 관리자 탭3 전용: 팀 전체 통합 역대 메뉴 TOP 3 연산
             let totalMenuMap = {};
             let totalCountAll = 0;
             state.historyData.forEach(h => {
@@ -678,7 +679,7 @@
                     menuItems.forEach(el => el.classList.remove('slot-rolling'));
                     
                     const finalIdx = Math.floor(Math.random() * state.menus.length);
-                    menuItems[finalIdx].click(); // 무작위 아이템 최종 클릭 선택 유도
+                    menuItems[finalIdx].click(); 
                     btn.disabled = false;
                     alert(`🎲 오늘의 추천 메뉴는 [${state.menus[finalIdx].name}] 입니다!`);
                 }
@@ -694,7 +695,6 @@
             const isDoubleChecked = document.getElementById('doubleSizeCb')?.checked;
             let finalPrice = selected.price + (isDoubleChecked ? selected.doubleFee : 0);
 
-            // 체크된 개인 사이드 수집
             let selectedSides = [];
             const sideCbs = document.querySelectorAll('.pside-cb:checked');
             sideCbs.forEach(cb => {
@@ -743,7 +743,6 @@
             if(confirm("정말 메뉴를 다시 고르시겠습니까?")) {
                 localStorage.removeItem('ordered_10.5');
                 setFormDisabled(false);
-                // 기존 활성화 클래스 초기화
                 document.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
                 selected = { res: null, user: null, menu: null, price: 0, rawMenuName: null, doubleFee: 0 };
             }
@@ -810,7 +809,6 @@
             if(d.result === "success") { alert("💾 오늘의 점심 장부 기록이 최종 마감 및 안전하게 백업되었습니다!"); updateState(); }
         }
 
-        // 초기 시작 및 8초 주기로 실시간 화면 동기화 폴링 자동화
         updateState();
         setInterval(updateState, 8000);
     </script>
