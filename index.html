@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v10.9</title>
+    <title>Lunch Pro</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; --info: #38bdf8; --warning: #fba51a; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -265,7 +265,6 @@
                 document.getElementById('votingSection').classList.remove('hidden');
                 document.getElementById('adminDashboard').classList.add('hidden');
                 
-                // 식당명 버튼이 비어있거나 변경되었을 때 렌더링
                 if(!document.getElementById('resGrid').children.length) 
                     renderGrid('resGrid', state.restaurants, (v) => { selected.res = v; sendVote(); });
                 
@@ -659,7 +658,6 @@
             const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_START" }) });
             const d = await res.json();
             if(d.result === "success") { 
-                // 강제 그리드 재생성을 유도하기 위해 자식 노드를 먼저 명시적 초기화합니다.
                 document.getElementById('resGrid').innerHTML = '';
                 document.getElementById('userGrid').innerHTML = '';
                 document.getElementById('menuGrid').innerHTML = '';
