@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v10.8</title>
+    <title>Lunch Pro v10.9</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; --info: #38bdf8; --warning: #fba51a; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -264,8 +264,11 @@
             } else if(state.status === "VOTING") {
                 document.getElementById('votingSection').classList.remove('hidden');
                 document.getElementById('adminDashboard').classList.add('hidden');
+                
+                // 식당명 버튼이 비어있거나 변경되었을 때 렌더링
                 if(!document.getElementById('resGrid').children.length) 
                     renderGrid('resGrid', state.restaurants, (v) => { selected.res = v; sendVote(); });
+                
                 startLocalTimer(state.endTime);
                 const percent = (state.voteCount / state.totalCount) * 100;
                 document.getElementById('voteProgress').style.width = percent + '%';
@@ -655,20 +658,25 @@
             document.getElementById('loading').classList.remove('hidden');
             const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_START" }) });
             const d = await res.json();
-            if(d.result === "success") { alert("투표가 시작되었습니다!"); updateState(); }
+            if(d.result === "success") { 
+                // 강제 그리드 재생성을 유도하기 위해 자식 노드를 먼저 명시적 초기화합니다.
+                document.getElementById('resGrid').innerHTML = '';
+                document.getElementById('userGrid').innerHTML = '';
+                document.getElementById('menuGrid').innerHTML = '';
+                alert("투표가 시작되었습니다!"); 
+                updateState(); 
+            }
         }
 
-        // [핵심 변경] 투표 데이터 적재 차단 및 현재 시각 기준 30초 동적 연장 API 통신
         async function extendVoteTime() {
             if(state.status !== "VOTING") return alert("투표 진행 중에만 시간을 연장할 수 있습니다.");
             document.getElementById('loading').classList.remove('hidden');
             
-            // 현재 작동 중인 로컬 브라우저 시각이 아니라, 이미 실행된 마감 타임스탬프를 기준으로 정확하게 30초를 가산합니다.
             let currentEndTime = Number(state.endTime);
             let newEndTime = currentEndTime + 30000;
             
             const payload = {
-                type: "ADMIN_EXTEND_TIME", // 독자적인 type 전송으로 백엔드 투표 입력 차단
+                type: "ADMIN_EXTEND_TIME",
                 newEndTime: newEndTime
             };
             
