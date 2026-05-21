@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v10.7</title>
+    <title>Lunch Pro v10.8</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; --info: #38bdf8; --warning: #fba51a; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -195,18 +195,15 @@
         let excludedUsers = new Set(); 
         let timerInterval;
 
-        // 동률 시 고정 랜덤 식당을 추출하는 결정론적 함수 추가 (Deterministic Seeding 방식)
         function getDeterministicWinner(candidates) {
             if (!candidates || candidates.length === 0) return "";
             if (candidates.length === 1) return candidates[0];
             
-            // 현재 투표 현황의 원시 데이터를 정렬 후 문자열화하여 고유 시드 문자열 생성
             let seedString = (state.sysDate || "") + candidates.sort().join("");
             if (state.voteData && state.voteData.length > 0) {
                 seedString += state.voteData.map(v => v.choice + v.timestamp).sort().join("");
             }
             
-            // 해시값 생성 로직
             let hash = 0;
             for (let i = 0; i < seedString.length; i++) {
                 hash = seedString.charCodeAt(i) + ((hash << 5) - hash);
@@ -220,7 +217,6 @@
                 const res = await fetch(GAS_URL + "?type=get");
                 state = await res.json();
                 
-                // [버그 수정 1] 백엔드에서 결정된 승자가 없거나 동률 처리가 프론트엔드로 넘어올 때 보정
                 if (state.status === "ORDERING" && state.winnerCandidates && state.winnerCandidates.length > 1) {
                     state.winner = getDeterministicWinner(state.winnerCandidates);
                 }
@@ -278,7 +274,6 @@
                 document.getElementById('orderingSection').classList.remove('hidden');
                 document.getElementById('winnerTitle').innerText = `🏆 ${state.winner}`;
                 
-                // [버그 수정 2] localStorage에 오늘 날짜 키를 엮어, 새로운 투표 시작 시 캐시가 자동 초기화되도록 전면 수정
                 const cacheKey = 'ordered_date_' + (state.sysDate || 'default');
                 const isOrdered = localStorage.getItem(cacheKey);
                 
@@ -663,19 +658,25 @@
             if(d.result === "success") { alert("투표가 시작되었습니다!"); updateState(); }
         }
 
+        // [핵심 변경] 투표 데이터 적재 차단 및 현재 시각 기준 30초 동적 연장 API 통신
         async function extendVoteTime() {
             if(state.status !== "VOTING") return alert("투표 진행 중에만 시간을 연장할 수 있습니다.");
             document.getElementById('loading').classList.remove('hidden');
+            
+            // 현재 작동 중인 로컬 브라우저 시각이 아니라, 이미 실행된 마감 타임스탬프를 기준으로 정확하게 30초를 가산합니다.
             let currentEndTime = Number(state.endTime);
             let newEndTime = currentEndTime + 30000;
+            
             const payload = {
-                type: "VOTE",
-                deviceId: "SYSTEM_ADMIN_EXTEND",
-                choice: "EXTEND_TIME",
+                type: "ADMIN_EXTEND_TIME", // 독자적인 type 전송으로 백엔드 투표 입력 차단
                 newEndTime: newEndTime
             };
-            await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
-            alert("➕ 투표 마감 시간이 30초 연장되었습니다!");
+            
+            const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
+            const d = await res.json();
+            if(d.result === "success") {
+                alert("➕ 투표 마감 시간이 성공적으로 30초 연장되었습니다!");
+            }
             updateState();
         }
 
@@ -754,7 +755,6 @@
             const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
             const d = await res.json();
             if(d.result === "success") {
-                // [버그 수정 2 반영] 날짜별 고유 키로 로컬 스토리지 저장
                 const cacheKey = 'ordered_date_' + (state.sysDate || 'default');
                 localStorage.setItem(cacheKey, 'true');
                 setFormDisabled(true);
