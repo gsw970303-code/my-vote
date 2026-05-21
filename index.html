@@ -534,239 +534,136 @@
         }
 
         function calculateAdvancedStats() {
+            // 1. 실시간 오늘 인기메뉴 취합
             let liveMenuMap = {};
-            let totalLiveOrders = 0;
-            if(state.orderData && state.orderData.length > 0) {
+            if(state.orderData) {
                 state.orderData.forEach(o => {
                     if(!o.name.includes("[사이드]")) {
-                        let cleanMenu = o.menu.replace(' (곱빼기)','').trim();
-                        liveMenuMap[cleanMenu] = (liveMenuMap[cleanMenu] || 0) + 1;
-                        totalLiveOrders++;
+                        let cleanName = o.menu.replace('(개인사이드)','').trim();
+                        liveMenuMap[cleanName] = (liveMenuMap[cleanName] || 0) + 1;
                     }
                 });
             }
-            
-            let topLiveArray = Object.entries(liveMenuMap).sort((a, b) => b[1] - a[1]);
-            let liveHtml = '';
-            if(topLiveArray.length === 0) {
-                liveHtml = '<div style="color:#94a3b8; font-style:italic; padding: 10px 0;">⏳ 아직 아무도 메뉴를 고르지 않았습니다. 첫 표를 던져보세요!</div>';
-            } else {
-                for(let i=0; i<Math.min(3, topLiveArray.length); i++) {
-                    let count = topLiveArray[i][1];
-                    let pct = totalLiveOrders > 0 ? (count / totalLiveOrders) * 100 : 0;
-                    liveHtml += createRankRowHtml(i, topLiveArray[i][0], `${count}명 선택 중`, pct, 'var(--info)');
-                }
-            }
-            document.getElementById('userLiveTopMenus').innerHTML = liveHtml;
+            let liveSorted = Object.entries(liveMenuMap).sort((a,b) => b[1] - a[1]).slice(0,3);
+            const liveGrid = document.getElementById('userLiveTopMenus');
+            liveGrid.innerHTML = liveSorted.length === 0 ? '<div style="font-size:12px; color:#64748b; text-align:left;">아직 선택된 실시간 메뉴가 없습니다.</div>' : '';
+            let maxLiveCount = liveSorted[0] ? liveSorted[0][1] : 1;
+            liveSorted.forEach(([menu, cnt], idx) => {
+                let pct = (cnt / maxLiveCount) * 100;
+                liveGrid.innerHTML += createRankRowHtml(idx, menu, `${cnt}개`, pct, 'var(--info)');
+            });
 
-            if (!state.historyData || state.historyData.length === 0) {
-                const noLogMsg = '<div style="color:#94a3b8; font-style:italic; padding: 10px 0;">데이터가 부족하여 통계를 낼 수 없습니다.</div>';
-                document.getElementById('totalLogCountText').innerText = "* 누적 데이터 없음";
-                document.getElementById('statsTopRestaurants').innerHTML = noLogMsg;
-                document.getElementById('statsTopMenus').innerHTML = noLogMsg;
-                document.getElementById('userArchiveTopMenus').innerHTML = noLogMsg;
-                return;
-            }
-
+            // 2. 역대 누적 데이터 분석
+            if(!state.historyData || state.historyData.length === 0) return;
             document.getElementById('totalLogCountText').innerText = `* 총 ${state.historyData.length}개의 누적 데이터 기반 분석 완료`;
 
+            // 이 집(현재 당첨 식당)의 누적 인기 메뉴 TOP 3
             let archiveMenuMap = {};
-            let totalArchiveMenus = 0;
             state.historyData.filter(h => h.restaurant === state.winner).forEach(h => {
-                let cleanMenu = h.menu.replace(' (곱빼기)','').trim();
-                archiveMenuMap[cleanMenu] = (archiveMenuMap[cleanMenu] || 0) + 1;
-                totalArchiveMenus++;
+                let clean = h.menu.replace(' (곱빼기)', '').trim();
+                archiveMenuMap[clean] = (archiveMenuMap[clean] || 0) + 1;
+            });
+            let archiveSorted = Object.entries(archiveMenuMap).sort((a,b) => b[1] - a[1]).slice(0,3);
+            const userArchiveGrid = document.getElementById('userArchiveTopMenus');
+            userArchiveGrid.innerHTML = archiveSorted.length === 0 ? '<div style="font-size:12px; color:#64748b; text-align:left;">이 식당의 누적 기록이 없습니다.</div>' : '';
+            let maxArchCount = archiveSorted[0] ? archiveSorted[0][1] : 1;
+            archiveSorted.forEach(([menu, cnt], idx) => {
+                let pct = (cnt / maxArchCount) * 100;
+                userArchiveGrid.innerHTML += createRankRowHtml(idx, menu, `${cnt}회`, pct, 'var(--warning)');
             });
 
-            let topArchiveArray = Object.entries(archiveMenuMap).sort((a, b) => b[1] - a[1]);
-            let archiveHtml = '';
-            if(topArchiveArray.length === 0) {
-                archiveHtml = '<div style="color:#94a3b8; font-style:italic; padding: 10px 0;">이 식당의 방문 기록이 아직 없습니다.</div>';
-            } else {
-                for(let i=0; i<Math.min(3, topArchiveArray.length); i++) {
-                    let count = topArchiveArray[i][1];
-                    let pct = totalArchiveMenus > 0 ? (count / totalArchiveMenus) * 100 : 0;
-                    archiveHtml += createRankRowHtml(i, topArchiveArray[i][0], `누적 ${count}회 주문`, pct, 'var(--warning)');
-                }
-            }
-            document.getElementById('userArchiveTopMenus').innerHTML = archiveHtml;
-
+            // 관리자 탭용: 가장 자주 간 식당 TOP 3
             let resMap = {};
-            let uniqueDatesMap = {};
+            state.historyData.forEach(h => { resMap[h.restaurant] = (resMap[h.restaurant] || 0) + 1; });
+            let resSorted = Object.entries(resMap).sort((a,b) => b[1] - a[1]).slice(0,3);
+            const statsResGrid = document.getElementById('statsTopRestaurants');
+            statsResGrid.innerHTML = '';
+            let maxResCount = resSorted[0] ? resSorted[0][1] : 1;
+            resSorted.forEach(([resName, cnt], idx) => {
+                let pct = (cnt / maxResCount) * 100;
+                statsResGrid.innerHTML += createRankRowHtml(idx, resName, `${cnt}회 방문`, pct, '#fba51a');
+            });
+
+            // 관리자 탭용: 팀 통합 역대 메뉴 TOP 3
+            let globalMenuMap = {};
             state.historyData.forEach(h => {
-                if(!uniqueDatesMap[h.date]) uniqueDatesMap[h.date] = {};
-                uniqueDatesMap[h.date][h.restaurant] = true;
+                let clean = h.menu.replace(' (곱빼기)', '').trim();
+                globalMenuMap[clean] = (globalMenuMap[clean] || 0) + 1;
             });
-            Object.values(uniqueDatesMap).forEach(resObj => {
-                Object.keys(resObj).forEach(rName => { resMap[rName] = (resMap[rName] || 0) + 1; });
+            let globalMenuSorted = Object.entries(globalMenuMap).sort((a,b) => b[1] - a[1]).slice(0,3);
+            const statsMenuGrid = document.getElementById('statsTopMenus');
+            statsMenuGrid.innerHTML = '';
+            let maxGlobalMenuCount = globalMenuSorted[0] ? globalMenuSorted[0][1] : 1;
+            globalMenuSorted.forEach(([menuName, cnt], idx) => {
+                let pct = (cnt / maxGlobalMenuCount) * 100;
+                statsMenuGrid.innerHTML += createRankRowHtml(idx, menuName, `${cnt}회 주문`, pct, 'var(--accent)');
             });
-            let topResArray = Object.entries(resMap).sort((a, b) => b[1] - a[1]);
-            let totalDays = Object.keys(uniqueDatesMap).length;
-            let statsResHtml = '';
-            for(let i=0; i<Math.min(3, topResArray.length); i++) {
-                let count = topResArray[i][1];
-                let pct = totalDays > 0 ? (count / totalDays) * 100 : 0;
-                statsResHtml += createRankRowHtml(i, topResArray[i][0], `총 ${count}회 방문`, pct, '#fba51a');
-            }
-            document.getElementById('statsTopRestaurants').innerHTML = statsResHtml;
-
-            let totalMenuMap = {};
-            let totalCountAll = 0;
-            state.historyData.forEach(h => {
-                let cleanMenu = h.menu.replace(' (곱빼기)','').trim();
-                totalMenuMap[cleanMenu] = (totalMenuMap[cleanMenu] || 0) + 1;
-                totalCountAll++;
-            });
-            let topTotalMenuArray = Object.entries(totalMenuMap).sort((a, b) => b[1] - a[1]);
-            let statsMenuHtml = '';
-            for(let i=0; i<Math.min(3, topTotalMenuArray.length); i++) {
-                let count = topTotalMenuArray[i][1];
-                let pct = totalCountAll > 0 ? (count / totalCountAll) * 100 : 0;
-                statsMenuHtml += createRankRowHtml(i, topTotalMenuArray[i][0], `총 ${count}회 선택`, pct, 'var(--accent)');
-            }
-            document.getElementById('statsTopMenus').innerHTML = statsMenuHtml;
         }
 
-        function toggleExclude(userKey) {
-            if (excludedUsers.has(userKey)) { excludedUsers.delete(userKey); } 
-            else { excludedUsers.add(userKey); }
-            renderAdminDashboard();
-        }
-
-        function startLocalTimer(endTime) {
-            if(timerInterval) clearInterval(timerInterval);
-            function updateTimer() {
-                const now = new Date().getTime();
-                const diff = endTime - now;
-                if(diff <= 0) {
-                    clearInterval(timerInterval);
-                    document.getElementById('voteTimer').innerText = "00:00";
-                    updateState();
-                    return;
-                }
-                const m = String(Math.floor(diff / 60000)).padStart(2, '0');
-                const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
-                document.getElementById('voteTimer').innerText = `${m}:${s}`;
-            }
-            updateTimer();
-            timerInterval = setInterval(updateTimer, 1000);
-        }
-
-        async function startSystem() {
-            if(!confirm("🚀 정말 새로운 점심 투표를 활성화하시겠습니까?\n기존 오늘 데이터는 초기화됩니다.")) return;
-            document.getElementById('loading').classList.remove('hidden');
-            const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_START" }) });
-            const d = await res.json();
-            if(d.result === "success") { 
-                document.getElementById('resGrid').innerHTML = '';
-                document.getElementById('userGrid').innerHTML = '';
-                document.getElementById('menuGrid').innerHTML = '';
-                alert("투표가 시작되었습니다!"); 
-                updateState(); 
-            }
-        }
-
-        async function extendVoteTime() {
-            if(state.status !== "VOTING") return alert("투표 진행 중에만 시간을 연장할 수 있습니다.");
-            document.getElementById('loading').classList.remove('hidden');
-            
-            let currentEndTime = Number(state.endTime);
-            let newEndTime = currentEndTime + 30000;
-            
-            const payload = {
-                type: "ADMIN_EXTEND_TIME",
-                newEndTime: newEndTime
-            };
-            
-            const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
-            const d = await res.json();
-            if(d.result === "success") {
-                alert("➕ 투표 마감 시간이 성공적으로 30초 연장되었습니다!");
-            }
-            updateState();
-        }
-
+        // 롤백 적용 완료: 식당 투표 시 기존 플로우에 맞춰 식당명(String) 데이터를 그대로 전송합니다.
         async function sendVote() {
             if(!selected.res) return alert("식당을 선택해 주세요!");
             document.getElementById('loading').classList.remove('hidden');
-            await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) });
-            alert(`👍 [${selected.res}] 투표 완료! 다른 인원들의 투표 마감을 대기합니다.`);
-            updateState();
-        }
-
-        function randomMenuSlot() {
-            if(!state.menus || state.menus.length === 0) return;
-            const btn = document.getElementById('randomBtn');
-            const menuItems = document.querySelectorAll('#menuGrid .item');
-            if(menuItems.length === 0) return;
-            
-            btn.disabled = true;
-            let counter = 0;
-            const duration = 1500; 
-            const intervalTime = 80;
-            const interval = setInterval(() => {
-                menuItems.forEach(el => el.classList.remove('slot-rolling'));
-                const randomIdx = Math.floor(Math.random() * menuItems.length);
-                menuItems[randomIdx].classList.add('slot-rolling');
-                counter += intervalTime;
-                
-                if(counter >= duration) {
-                    clearInterval(interval);
-                    menuItems.forEach(el => el.classList.remove('slot-rolling'));
-                    const finalIdx = Math.floor(Math.random() * state.menus.length);
-                    menuItems[finalIdx].click(); 
-                    btn.disabled = false;
-                    alert(`🎲 오늘의 추천 메뉴는 [${state.menus[finalIdx].name}] 입니다!`);
-                }
-            }, intervalTime);
+            try {
+                // 식당 번호화 처리를 무효화하고 선택된 식당명(String)을 choice 필드로 전송
+                await fetch(`${GAS_URL}?type=vote&deviceId=${deviceId}&choice=${encodeURIComponent(selected.res)}`);
+                alert(`🎯 [${selected.res}] 투표가 반영되었습니다.`);
+                updateState();
+            } catch(e) {
+                alert("투표 전송 실패. 네트워크 상태를 확인하세요.");
+                document.getElementById('loading').classList.add('hidden');
+            }
         }
 
         async function submitOrder() {
-            if(!selected.user) return alert("성함을 선택해 주세요!");
+            if(!selected.user) return alert("주문자 성함을 선택해 주세요!");
             if(!selected.menu) return alert("메뉴를 선택해 주세요!");
 
             document.getElementById('loading').classList.remove('hidden');
-            const isDoubleChecked = document.getElementById('doubleSizeCb')?.checked;
-            let finalPrice = selected.price + (isDoubleChecked ? selected.doubleFee : 0);
+            let ordersToSubmit = [];
+            
+            // 메인 메뉴 정보 구성
+            let finalPrice = selected.price;
+            const doubleCb = document.getElementById('doubleSizeCb');
+            if(doubleCb && doubleCb.checked) finalPrice += (selected.doubleFee || 0);
 
-            let selectedSides = [];
-            const sideCbs = document.querySelectorAll('.pside-cb:checked');
-            sideCbs.forEach(cb => {
-                selectedSides.push({
-                    name: cb.getAttribute('data-name'),
+            ordersToSubmit.push({ name: selected.user, menu: selected.menu, price: finalPrice });
+
+            // 개인용 사이드 메뉴 추가 처리
+            document.querySelectorAll('.pside-cb:checked').forEach(cb => {
+                ordersToSubmit.push({
+                    name: selected.user,
+                    menu: cb.getAttribute('data-name'),
                     price: Number(cb.getAttribute('data-price'))
                 });
             });
 
-            let payload = {};
-            if(selectedSides.length > 0) {
-                payload = {
-                    type: "MULTI_ORDER",
-                    userName: selected.user,
-                    restaurant: state.winner,
-                    mainMenu: selected.menu,
-                    mainPrice: finalPrice,
-                    sides: selectedSides
-                };
-            } else {
-                payload = {
-                    type: "ORDER",
-                    userName: selected.user,
-                    restaurant: state.winner,
-                    menu: selected.menu,
-                    price: finalPrice
-                };
-            }
-
-            const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
-            const d = await res.json();
-            if(d.result === "success") {
+            try {
+                await fetch(`${GAS_URL}?type=order&orders=${encodeURIComponent(JSON.stringify(ordersToSubmit))}`);
                 const cacheKey = 'ordered_date_' + (state.sysDate || 'default');
                 localStorage.setItem(cacheKey, 'true');
-                setFormDisabled(true);
-                alert("✨ 주문 제출이 완료되었습니다!");
+                alert("🎉 주문이 안전하게 제출되었습니다!");
                 updateState();
+            } catch(e) {
+                alert("주문 제출에 실패했습니다.");
+                document.getElementById('loading').classList.add('hidden');
             }
+        }
+
+        async function selectSide(obj) {
+            if(!confirm(`[일괄 추가] 팀원 전체 명단에 사이드 메뉴 [ ${obj.name} ]을 일괄 추가하시겠습니까?`)) return;
+            document.getElementById('loading').classList.remove('hidden');
+            let item = { name: "[사이드]", menu: obj.name, price: Number(obj.price) };
+            try {
+                await fetch(`${GAS_URL}?type=order&orders=${encodeURIComponent(JSON.stringify([item]))}`);
+                updateState();
+            } catch(e) {}
+        }
+
+        function toggleExclude(key) {
+            if(excludedUsers.has(key)) excludedUsers.delete(key);
+            else excludedUsers.add(key);
+            renderAdminDashboard();
         }
 
         function setFormDisabled(disabled) {
@@ -775,37 +672,37 @@
         }
 
         function reOrder() {
-            if(confirm("정말 메뉴를 다시 고르시겠습니까?")) {
-                const cacheKey = 'ordered_date_' + (state.sysDate || 'default');
-                localStorage.removeItem(cacheKey);
+            if(confirm("정말 메뉴를 다시 고르시겠습니까?\n기존 입력된 내역은 새 주문 완료 시 덮어써집니다.")) {
                 setFormDisabled(false);
-                document.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
-                selected = { res: null, user: null, menu: null, price: 0, rawMenuName: null, doubleFee: 0 };
             }
         }
 
-        async function selectSide(obj) {
-            const adminSideCommentName = `[사이드] ${obj.name.replace('(사이드)','').trim()}`;
-            if(!confirm(`[${adminSideCommentName}] 메뉴를 일괄 추가 주문 목록에 삽입하시겠습니까?`)) return;
-            
+        async function startSystem() {
+            if(!confirm("⚠️ 경고: 정말 투표 판을 새로 시작하시겠습니까?\n기존 오늘 자 데이터(투표 및 실시간 주문 내역)가 전체 초기화됩니다.")) return;
             document.getElementById('loading').classList.remove('hidden');
-            const payload = {
-                type: "ORDER",
-                userName: adminSideCommentName,
-                restaurant: state.winner,
-                menu: obj.name,
-                price: Number(obj.price)
-            };
-            await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
-            updateState();
+            try {
+                await fetch(GAS_URL + "?type=startSystem");
+                excludedUsers.clear();
+                alert("🚀 새로운 점심 투표 및 정산 판이 개설되었습니다!");
+                updateState();
+            } catch(e) {}
+        }
+
+        async function extendVoteTime() {
+            document.getElementById('loading').classList.remove('hidden');
+            try {
+                await fetch(GAS_URL + "?type=extendTime");
+                alert("➕ 식당 투표 마감 시간이 30초 연장되었습니다.");
+                updateState();
+            } catch(e) {}
         }
 
         async function saveTodayHistory() {
-            if(!confirm("⚠️ 오늘 확정된 실시간 정산 명단을 구글 시트 역대 장부(History)에 누적 기록합니까?")) return;
+            if(!confirm("💾 오늘의 정산 내역 및 매칭 데이터를 장부에 영구 기록하고 정산 방을 대기 상태로 전환하시겠습니까?")) return;
             document.getElementById('loading').classList.remove('hidden');
-            let finalRecords = [];
-            let userOrdersMap = {};
             
+            let finalLogs = [];
+            let userOrdersMap = {};
             state.orderData.forEach(order => {
                 if(!order.name.includes("[사이드]")) {
                     if(!userOrdersMap[order.name]) userOrdersMap[order.name] = [];
@@ -816,36 +713,85 @@
             state.employees.forEach(empName => {
                 if(!excludedUsers.has(empName)) {
                     const orders = userOrdersMap[empName] || [];
-                    orders.forEach(o => {
-                        finalRecords.push({ name: empName, menu: o.menu, price: Number(o.price) });
-                    });
+                    if(orders.length > 0) {
+                        let menusArray = orders.map(o => o.menu.replace('(개인사이드)','').trim());
+                        let totalCost = orders.reduce((sum, o) => sum + (Number(o.price) || 0), 0);
+                        finalLogs.push({ date: state.sysDate, restaurant: state.winner, name: empName, menu: menusArray.join(' + '), price: totalCost });
+                    }
                 }
             });
 
             state.orderData.forEach((order, idx) => {
-                if (order.name.includes("[사이드]") && !excludedUsers.has(`side_${idx}`)) {
-                    finalRecords.push({ name: order.name, menu: order.menu, price: Number(order.price) });
+                if(order.name.includes("[사이드]") && !excludedUsers.has(`side_${idx}`)) {
+                    finalLogs.push({ date: state.sysDate, restaurant: state.winner, name: "[사이드]", menu: order.menu.replace('(사이드)','').trim(), price: Number(order.price) });
                 }
             });
 
-            if(finalRecords.length === 0) {
+            try {
+                await fetch(`${GAS_URL}?type=saveHistory&logs=${encodeURIComponent(JSON.stringify(finalLogs))}`);
+                alert("💾 데이터베이스 장부에 성공적으로 저장 및 마감 처리되었습니다!");
+                updateState();
+            } catch(e) {
+                alert("장부 저장 처리 실패");
                 document.getElementById('loading').classList.add('hidden');
-                return alert("기록할 주문 대상자가 없습니다.");
             }
-
-            const payload = {
-                type: "ADMIN_SAVE_HISTORY",
-                restaurant: state.winner,
-                records: finalRecords
-            };
-
-            const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
-            const d = await res.json();
-            if(d.result === "success") { alert("💾 오늘의 점심 장부 기록이 최종 마감 및 안전하게 백업되었습니다!"); updateState(); }
         }
 
+        function startLocalTimer(endTimeStr) {
+            clearInterval(timerInterval);
+            if(!endTimeStr) return;
+            const timerEl = document.getElementById('voteTimer');
+            
+            function tick() {
+                const diff = new Date(endTimeStr).getTime() - Date.now();
+                if(diff <= 0) {
+                    clearInterval(timerInterval);
+                    timerEl.innerText = "00:00";
+                    updateState();
+                    return;
+                }
+                const m = String(Math.floor(diff / 60000)).padStart(2, '0');
+                const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+                timerEl.innerText = `${m}:${s}`;
+            }
+            tick();
+            timerInterval = setInterval(tick, 1000);
+        }
+
+        function randomMenuSlot() {
+            const items = document.querySelectorAll('#menuGrid .item');
+            if(items.length === 0) return;
+            const btn = document.getElementById('randomBtn');
+            btn.disabled = true;
+
+            let count = 0;
+            let speed = 50;
+            let currentActive = null;
+
+            function roll() {
+                if(currentActive) currentActive.classList.remove('slot-rolling');
+                let randIdx = Math.floor(Math.random() * items.length);
+                currentActive = items[randIdx];
+                currentActive.classList.add('slot-rolling');
+
+                count++;
+                if(count > 20) {
+                    speed += 40;
+                }
+                if(count > 30) {
+                    if(currentActive) currentActive.classList.remove('slot-rolling');
+                    currentActive.click();
+                    btn.disabled = false;
+                    return;
+                }
+                setTimeout(roll, speed);
+            }
+            roll();
+        }
+
+        // 초기 시작 파이프라인 구동
         updateState();
-        setInterval(updateState, 8000);
+        setInterval(updateState, 5000);
     </script>
 </body>
 </html>
