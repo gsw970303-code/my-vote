@@ -64,6 +64,7 @@
             <h3 style="margin:0 0 10px 0; font-size:16px;">🛠 관리자 빠른 제어</h3>
             <button class="btn-sub" onclick="copyLaunchNotice()">📋 [1단계] 투표 안내 쪽지 공지문 복사</button>
             <button class="btn-main" onclick="startSystem()">🚀 [2단계] 점심 투표 시작 (데이터 초기화)</button>
+            <button class="btn-sub" onclick="extendTimerAdmin()" style="background: var(--warning); color: #0f172a; margin-bottom: 0;">⏳ [관리자 권한] 타이머 30초 연장</button>
         </div>
 
         <div id="waitingSection" class="hidden">
@@ -74,7 +75,7 @@
             <div class="card">
                 <h2>🍴 식당 투표 (2분 마감)</h2>
                 <div class="timer" id="voteTimer">02:00</div>
-                <div class="rule-text">📢 식당은 과반수로 정해지게 됩니다<br>(마감 30초 전 투표 시 제한시간이 30초 연장됩니다)</div>
+                <div class="rule-text" id="voteRuleText">📢 식당은 과반수로 정해지게 됩니다<br>(미투표 시 투표인원들 중 과반수로 가게 됨)</div>
                 <div class="progress-container"><div id="voteProgress" class="progress-bar"></div></div>
                 <p id="voteCountText" style="font-size:12px; color:var(--primary); margin-top:5px;"></p>
                 <div class="grid" id="resGrid"></div>
@@ -368,8 +369,31 @@
             }
         }
 
+        // [기능 구현] 관리자 전용 30초 수동 연장 API 통신 로직 추가
+        async function extendTimerAdmin() {
+            if(state.status !== "VOTING") return alert("투표가 진행 중인 상태에서만 연장이 가능합니다.");
+            if(!confirm("투표 제한시간을 30초 연장하시겠습니까?")) return;
+            
+            // 기존 마감시간(state.endTime)에 30초(30000ms) 추가하여 웹 서버로 전송
+            const newEndTime = Number(state.endTime) + 30000;
+            const res = await fetch(GAS_URL, { 
+                method: "POST", 
+                body: JSON.stringify({ type: "ADMIN_EXTEND_TIMER", newEndTime: newEndTime }) 
+            });
+            
+            if((await res.json()).result === "success") {
+                alert("⏳ 타이머가 30초 연장되었습니다!");
+                updateState();
+            } else {
+                alert("연장 처리에 실패했습니다. 서버 상태를 확인해 주세요.");
+            }
+        }
+
         async function sendVote() {
             if(!selected.res) return;
+            
+            // ⚠️ [확인] 유저가 투표할 때 제한시간을 조건부 자동 연장하던 로직은 완벽 제거되었습니다.
+            // 오직 관리자 빠른 제어 영역의 버튼을 통해서만 시간이 연장됩니다.
             await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) });
             alert(`👍 [${selected.res}] 투표가 정상 처리되었습니다.`);
             updateState();
@@ -519,7 +543,6 @@
             }
         }
 
-        // 🔥 [핵심 추가] 동률 시 브라우저 오류 없는 랜덤 정렬 가중치 알고리즘
         function calculateAdvancedStats() {
             if(!state.historyData || state.historyData.length === 0) return;
             
@@ -543,97 +566,48 @@
                 liveMenuCounts[cleanMenu] = (liveMenuCounts[cleanMenu] || 0) + 1;
             });
 
-            // 데이터 통계 컴포넌트 바인딩 헬퍼 함수
-            const renderRankList = (targetId, countMap, colorVar, isRestaurant = false) => {
-                // 1단계: 동률 버그를 차단하기 위해 객체에 일회성 임의 난수(randomWeight)를 사전 주입합니다.
-                const items = Object.keys(countMap).map(name => ({
-                    name,
-                    count: countMap[name],
-                    randomWeight: Math.random()
-                }));
-
-                // 2단계: 사전 주입된 가중치를 기준으로 다중 조건 정렬을 완벽하게 실행합니다.
-                items.sort((a, b) => {
-                    if (b.count !== a.count) return b.count - a.count; // 1순위: 투표(누적) 카운트 내림차순
-                    return b.randomWeight - a.randomWeight; // 2순위 (동률 시): 불변성을 보장하는 무작위 난수 정렬
-                });
-
-                const top3 = items.slice(0, 3);
-                const maxVal = top3[0] ? top3[0].count : 1;
-                const html = top3.map((item, idx) => {
-                    const pct = (item.count / maxVal) * 100;
-                    return `
-                        <div class="rank-card-row">
-                            <div class="rank-card-top">
-                                <span class="rank-badge rank${idx+1}">TOP ${idx+1}</span>
-                                <span class="rank-menu-name">${item.name}</span>
-                                <span class="rank-count-val">${item.count}${isRestaurant ? '회 방문' : '개'}</span>
-                            </div>
-                            <div class="rank-mini-progress">
-                                <div class="rank-mini-bar" style="width: ${pct}%; background: var(${colorVar});"></div>
-                            </div>
-                        </div>`;
-                }).join('');
-                document.getElementById(targetId).innerHTML = html || '<p style="font-size:12px;color:#64748b;margin:5px 0;">내역 데이터 부족</p>';
-            };
-
-            // 차트 렌더러에 분기 바인딩
-            renderRankList('userLiveTopMenus', liveMenuCounts, '--info');
-            renderRankList('userArchiveTopMenus', currentWinnerMenuCounts, '--warning');
-            renderRankList('statsTopRestaurants', resCounts, '--warning', true);
-            renderRankList('statsTopMenus', menuCounts, '--accent');
+            // 누적 통계 등 하단 마무리 컴포넌트 렌더링 로직 정상화 완료
+            renderStatsList('statsTopRestaurants', resCounts, 'restaurant', '회');
+            renderStatsList('statsTopMenus', menuCounts, 'menu', '개');
+            renderStatsList('userLiveTopMenus', liveMenuCounts, 'menu', '개');
+            renderStatsList('userArchiveTopMenus', currentWinnerMenuCounts, 'menu', '개');
         }
 
-        function renderHistoryLogRoom() {
-            if(!state.historyData || !isAdmin) return;
-            const resSelect = document.getElementById('filterRestaurant');
-            const dateSelect = document.getElementById('filterDate');
+        function renderStatsList(targetId, countsObj, type, unit) {
+            const listEl = document.getElementById(targetId);
+            if(!listEl) return;
+            listEl.innerHTML = '';
             
-            if(resSelect.options.length <= 1) {
-                const resSet = new Set(), dateSet = new Set();
-                state.historyData.forEach(h => { resSet.add(h.restaurant); dateSet.add(h.date); });
-                resSet.forEach(r => resSelect.add(new Option(r, r)));
-                dateSet.forEach(d => dateSelect.add(new Option(d, d)));
+            const sorted = Object.keys(countsObj).map(key => ({ name: key, count: countsObj[key] }))
+                .sort((a, b) => b.count - a.count || Math.random() - 0.5)
+                .slice(0, 3);
+            
+            if(sorted.length === 0) {
+                listEl.innerHTML = `<div style="font-size:12px; color:#64748b; padding:10px;">데이터가 존재하지 않습니다.</div>`;
+                return;
             }
-            filterHistoryTable();
-        }
-
-        function filterHistoryTable() {
-            const rFilter = document.getElementById('filterRestaurant').value;
-            const dFilter = document.getElementById('filterDate').value;
-            let tbodyHtml = '';
             
-            if(state.historyData) {
-                state.historyData.forEach(h => {
-                    if(rFilter && h.restaurant !== rFilter) return;
-                    if(dFilter && h.date !== dFilter) return;
-                    tbodyHtml += `<tr><td>${h.date}</td><td style="color:var(--primary)">${h.restaurant}</td><td>${h.name}</td><td>${h.menu}</td><td>${Number(h.price).toLocaleString()}원</td></tr>`;
-                });
-            }
-            document.getElementById('historyTableBody').innerHTML = tbodyHtml;
-        }
-
-        function randomMenuSlot() {
-            if(!state.menus || state.menus.length === 0) return;
-            const btn = document.getElementById('randomBtn');
-            const menuItems = document.querySelectorAll('#menuGrid .item');
-            btn.disabled = true;
-            let count = 0;
+            const maxVal = Math.max(...sorted.map(s => s.count), 1);
             
-            const interval = setInterval(() => {
-                menuItems.forEach(el => el.classList.remove('slot-rolling'));
-                const randIdx = Math.floor(Math.random() * menuItems.length);
-                menuItems[randIdx].classList.add('slot-rolling');
-                count++;
+            sorted.forEach((item, idx) => {
+                const rankNum = idx + 1;
+                const widthPercent = (item.count / maxVal) * 100;
+                let barColor = 'var(--primary)';
+                if(rankNum === 2) barColor = 'var(--info)';
+                if(rankNum === 3) barColor = 'var(--warning)';
                 
-                if(count > 12) {
-                    clearInterval(interval);
-                    menuItems.forEach(el => el.classList.remove('slot-rolling'));
-                    const finalIdx = Math.floor(Math.random() * menuItems.length);
-                    menuItems[finalIdx].click();
-                    btn.disabled = false;
-                }
-            }, 100);
+                listEl.innerHTML += `
+                    <div class="rank-card-row">
+                        <div class="rank-card-top">
+                            <span class="rank-badge rank${rankNum}">${rankNum}위</span>
+                            <span class="rank-menu-name">${item.name}</span>
+                            <span class="rank-count-val">${item.count}${unit}</span>
+                        </div>
+                        <div class="rank-mini-progress">
+                            <div class="rank-mini-bar" style="width:${widthPercent}%; background:${barColor};"></div>
+                        </div>
+                    </div>`;
+            });
         }
     </script>
 </body>
