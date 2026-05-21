@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v10.8</title>
+    <title>Lunch Pro v10.5</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; --info: #38bdf8; --warning: #fba51a; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -48,12 +48,12 @@
         .rank-mini-progress { width: 100%; height: 5px; background: #1e293b; border-radius: 3px; overflow: hidden; }
         .rank-mini-bar { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
         
-        .slot-rolling { animation: slotBlurEffect 0.1s infinite alternate; z-index: 10; box-shadow: 0 0 15px rgba(0, 255, 136, 0.4); }
         @keyframes slotBlurEffect {
             0% { transform: scale(1.0); filter: blur(0px); background: #0f172a; border-color: #334155; }
             50% { transform: scale(1.05); filter: blur(1px); background: rgba(0, 255, 136, 0.2); border-color: var(--primary); color: #ffffff; }
             100% { transform: scale(1.0); filter: blur(0px); background: #0f172a; border-color: #334155; }
         }
+        .slot-rolling { animation: slotBlurEffect 0.1s infinite alternate; z-index: 10; box-shadow: 0 0 15px rgba(0, 255, 136, 0.4); }
     </style>
 </head>
 <body>
@@ -64,7 +64,6 @@
             <h3 style="margin:0 0 10px 0; font-size:16px;">🛠 관리자 빠른 제어</h3>
             <button class="btn-sub" onclick="copyLaunchNotice()">📋 [1단계] 투표 안내 쪽지 공지문 복사</button>
             <button class="btn-main" onclick="startSystem()">🚀 [2단계] 점심 투표 시작 (데이터 초기화)</button>
-            <button id="extendTimerBtn" class="btn-sub" style="background:var(--card); border-color:var(--info); color:var(--info); margin-bottom:0;" onclick="extendVoteTime()">➕ 투표 시간 30초 연장</button>
         </div>
 
         <div id="waitingSection" class="hidden">
@@ -115,17 +114,17 @@
             </div>
 
             <div class="card" id="userStatsCard" style="padding: 20px; border-color: #334155;">
-                <h3 style="color:var(--primary); margin-top:0; font-size:15px; text-align:left; border-bottom:1px solid #334155; padding-bottom:10px;">
+                <h3 style="color:var(--primary); margin-top:0; font-size:15px; text-align:left; border-bottom:1px solid #334155; padding-bottom:10px; display:flex; align-items:center; gap:6px;">
                     📊 오늘 우리 팀의 초이스는?
                 </h3>
                 
                 <div style="margin-bottom:20px;">
-                    <h4 style="margin:5px 0 10px 0; font-size:13px; color:var(--info); text-align:left;">⚡ 오늘 실시간 인기 메뉴 TOP 3</h4>
+                    <h4 style="margin:5px 0 10px 0; font-size:13px; color:var(--info); text-align:left; display:flex; align-items:center; gap:4px;">⚡ 오늘 실시간 인기 메뉴 TOP 3</h4>
                     <div id="userLiveTopMenus" class="rank-card-list"></div>
                 </div>
 
                 <div>
-                    <h4 style="margin:0 0 10px 0; font-size:13px; color:var(--warning); text-align:left;">📅 이 집의 역대 누적 인기 메뉴 TOP 3</h4>
+                    <h4 style="margin:0 0 10px 0; font-size:13px; color:var(--warning); text-align:left; display:flex; align-items:center; gap:4px;">📅 이 집의 역대 누적 인기 메뉴 TOP 3</h4>
                     <div id="userArchiveTopMenus" class="rank-card-list"></div>
                 </div>
             </div>
@@ -153,6 +152,7 @@
 
             <div id="adminTabContent2" class="card hidden" style="border: 1px solid #475569; padding: 20px; text-align:left;">
                 <h3 style="color:var(--primary); margin-top:0;">📂 과거 점심 기록 조회 장부</h3>
+                
                 <div style="margin-bottom:15px; display:flex; gap:10px;">
                     <select id="filterRestaurant" style="flex:1; padding:10px; border-radius:8px; background:#0f172a; color:white; border:1px solid #475569; font-size:13px;" onchange="filterHistoryTable()">
                         <option value="">모든 식당 필터</option>
@@ -161,6 +161,7 @@
                         <option value="">모든 날짜 필터</option>
                     </select>
                 </div>
+
                 <div id="historyTableContainer" style="max-height:380px; overflow-y:auto; border:1px solid #334155; border-radius:12px;">
                     <table class="admin-table" id="viewHistoryTable" style="margin-top:0;">
                         <thead><tr><th>날짜</th><th>식당</th><th>이름</th><th>메뉴</th><th>가격</th></tr></thead>
@@ -170,14 +171,16 @@
             </div>
 
             <div id="adminTabContent3" class="card hidden" style="border: 1px solid #475569; padding: 20px; text-align:left;">
-                <h3 style="color:var(--primary); margin-top:0;">📈 팀 선호도 가시화 리포트</h3>
+                <h3 style="color:var(--primary); margin-top:0; display:flex; align-items:center; gap:6px;">📈 팀 선호도 가시화 리포트</h3>
                 <p style="font-size:11px; color:#94a3b8; margin-top:-8px; margin-bottom:20px;" id="totalLogCountText">* 누적 데이터 로딩 중...</p>
+                
                 <div style="margin-bottom: 20px;">
-                    <h4 style="margin:0 0 10px 0; font-size:14px; color:#fba51a;">🥇 가장 자주 간 식당 TOP 3</h4>
+                    <h4 style="margin:0 0 10px 0; font-size:14px; color:#fba51a; display:flex; align-items:center; gap:4px;">🥇 가장 자주 간 식당 TOP 3</h4>
                     <div id="statsTopRestaurants" class="rank-card-list"></div>
                 </div>
+
                 <div>
-                    <h4 style="margin:0 0 10px 0; font-size:14px; color:var(--accent);">🔥 팀 전체 통합 역대 메뉴 TOP 3</h4>
+                    <h4 style="margin:0 0 10px 0; font-size:14px; color:var(--accent); display:flex; align-items:center; gap:4px;">🔥 팀 전체 통합 역대 메뉴 TOP 3</h4>
                     <div id="statsTopMenus" class="rank-card-list"></div>
                 </div>
             </div>
@@ -195,32 +198,10 @@
         let excludedUsers = new Set(); 
         let timerInterval;
 
-        function getDeterministicWinner(candidates) {
-            if (!candidates || candidates.length === 0) return "";
-            if (candidates.length === 1) return candidates[0];
-            
-            let seedString = (state.sysDate || "") + candidates.sort().join("");
-            if (state.voteData && state.voteData.length > 0) {
-                seedString += state.voteData.map(v => v.choice + v.timestamp).sort().join("");
-            }
-            
-            let hash = 0;
-            for (let i = 0; i < seedString.length; i++) {
-                hash = seedString.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            const index = Math.abs(hash) % candidates.length;
-            return candidates[index];
-        }
-
         async function updateState() {
             try {
                 const res = await fetch(GAS_URL + "?type=get");
                 state = await res.json();
-                
-                if (state.status === "ORDERING" && state.winnerCandidates && state.winnerCandidates.length > 1) {
-                    state.winner = getDeterministicWinner(state.winnerCandidates);
-                }
-                
                 renderUI();
                 calculateAdvancedStats();
                 if(isAdmin && state.status === "ORDERING") {
@@ -231,10 +212,19 @@
         }
 
         function copyLaunchNotice() {
-            let dateStr = state.sysDate ? state.sysDate : `${new Date().getMonth() + 1}.${new Date().getDate()}`;
-            const text = `${dateStr} 회계팀 점심 투표의 건 \n\n안녕하십니까 회계팀 구수완입니다! \n\n금일 점심 투표를 진행하고자 하오니 아래 링크를 클릭하시어\n투표 및 메뉴 선택을 진행해주시기 바랍니다! (식당 투표는 2분 후 마감)\n\n링크: https://gsw970303-code.github.io/my-vote/\n\n감사합니다.\n구수완 올림`;
+            // 시스템에 오늘 날짜 데이터가 있다면 사용하고, 없다면 실행 기준 월.일 연동
+            let dateStr = "";
+            if (state.sysDate) {
+                dateStr = state.sysDate;
+            } else {
+                const today = new Date();
+                dateStr = `${today.getMonth() + 1}.${today.getDate()}`;
+            }
+            
+            const text = `${dateStr} 회계팀 점심 투표의 건 \n\n안녕하십니까 회계팀 구수완입니다! \n\n금일 점심 투표을 진행하고자 하오니 아래 링크를 클릭하시어\n투표 및 메뉴 선택을 진행해주시기 바랍니다! (식당 투표는 2분 후 마감)\n\n링크: https://gsw970303-code.github.io/my-vote/\n\n감사합니다.\n구수완 올림`;
+            
             navigator.clipboard.writeText(text);
-            alert("📋 투표 안내 문구가 클립보드에 복사되었습니다.");
+            alert("📋 변경된 투표 안내 문구가 클립보드에 복사되었습니다.");
         }
 
         function copyRecallNotice() {
@@ -252,10 +242,7 @@
 
         function renderUI() {
             document.getElementById('loading').classList.add('hidden');
-            if(isAdmin) {
-                document.getElementById('adminStartSection').classList.remove('hidden');
-                document.getElementById('extendTimerBtn').classList.toggle('hidden', state.status !== "VOTING");
-            }
+            if(isAdmin) document.getElementById('adminStartSection').classList.remove('hidden');
             ['waitingSection', 'votingSection', 'orderingSection'].forEach(s => document.getElementById(s).classList.add('hidden'));
 
             if(state.status === "WAITING") {
@@ -274,9 +261,7 @@
                 document.getElementById('orderingSection').classList.remove('hidden');
                 document.getElementById('winnerTitle').innerText = `🏆 ${state.winner}`;
                 
-                const cacheKey = 'ordered_date_' + (state.sysDate || 'default');
-                const isOrdered = localStorage.getItem(cacheKey);
-                
+                const isOrdered = localStorage.getItem('ordered_10.5');
                 if(!document.getElementById('userGrid').children.length) {
                     renderGrid('userGrid', state.employees, (v) => {
                         selected.user = v;
@@ -485,6 +470,7 @@
                 let uniqueDates = [...new Set(state.historyData.map(h => h.date))].sort().reverse();
                 uniqueDates.forEach(d => { dateSelect.innerHTML += `<option value="${d}">${d}</option>`; });
             }
+
             filterHistoryTable();
         }
 
@@ -492,6 +478,7 @@
             const selectedRes = document.getElementById('filterRestaurant').value;
             const selectedDate = document.getElementById('filterDate').value;
             const tbody = document.getElementById('historyTableBody');
+            
             let filteredData = state.historyData;
 
             if(selectedRes) { filteredData = filteredData.filter(h => h.restaurant === selectedRes); }
@@ -499,10 +486,12 @@
 
             tbody.innerHTML = '';
             let rev = [...filteredData].reverse();
+            
             if(rev.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b;">조건에 맞는 내역이 없습니다.</td></tr>`;
                 return;
             }
+
             rev.forEach(h => {
                 tbody.innerHTML += `<tr>
                     <td>${h.date.substring(5)}</td>
@@ -518,6 +507,7 @@
             const rankNum = rankIdx + 1;
             const badgeClass = `rank${rankNum}`;
             const medal = rankNum === 1 ? '🥇' : rankNum === 2 ? '🥈' : '🥉';
+            
             return `
                 <div class="rank-card-row">
                     <div class="rank-card-top">
@@ -528,7 +518,8 @@
                     <div class="rank-mini-progress">
                         <div class="rank-mini-bar" style="width: ${percentage}%; background: ${barColor};"></div>
                     </div>
-                </div>`;
+                </div>
+            `;
         }
 
         function calculateAdvancedStats() {
@@ -658,28 +649,6 @@
             if(d.result === "success") { alert("투표가 시작되었습니다!"); updateState(); }
         }
 
-        // [핵심 변경] 투표 데이터 적재 차단 및 현재 시각 기준 30초 동적 연장 API 통신
-        async function extendVoteTime() {
-            if(state.status !== "VOTING") return alert("투표 진행 중에만 시간을 연장할 수 있습니다.");
-            document.getElementById('loading').classList.remove('hidden');
-            
-            // 현재 작동 중인 로컬 브라우저 시각이 아니라, 이미 실행된 마감 타임스탬프를 기준으로 정확하게 30초를 가산합니다.
-            let currentEndTime = Number(state.endTime);
-            let newEndTime = currentEndTime + 30000;
-            
-            const payload = {
-                type: "ADMIN_EXTEND_TIME", // 독자적인 type 전송으로 백엔드 투표 입력 차단
-                newEndTime: newEndTime
-            };
-            
-            const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
-            const d = await res.json();
-            if(d.result === "success") {
-                alert("➕ 투표 마감 시간이 성공적으로 30초 연장되었습니다!");
-            }
-            updateState();
-        }
-
         async function sendVote() {
             if(!selected.res) return alert("식당을 선택해 주세요!");
             document.getElementById('loading').classList.remove('hidden');
@@ -698,6 +667,7 @@
             let counter = 0;
             const duration = 1500; 
             const intervalTime = 80;
+            
             const interval = setInterval(() => {
                 menuItems.forEach(el => el.classList.remove('slot-rolling'));
                 const randomIdx = Math.floor(Math.random() * menuItems.length);
@@ -707,6 +677,7 @@
                 if(counter >= duration) {
                     clearInterval(interval);
                     menuItems.forEach(el => el.classList.remove('slot-rolling'));
+                    
                     const finalIdx = Math.floor(Math.random() * state.menus.length);
                     menuItems[finalIdx].click(); 
                     btn.disabled = false;
@@ -720,6 +691,7 @@
             if(!selected.menu) return alert("메뉴를 선택해 주세요!");
 
             document.getElementById('loading').classList.remove('hidden');
+
             const isDoubleChecked = document.getElementById('doubleSizeCb')?.checked;
             let finalPrice = selected.price + (isDoubleChecked ? selected.doubleFee : 0);
 
@@ -755,8 +727,7 @@
             const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify(payload) });
             const d = await res.json();
             if(d.result === "success") {
-                const cacheKey = 'ordered_date_' + (state.sysDate || 'default');
-                localStorage.setItem(cacheKey, 'true');
+                localStorage.setItem('ordered_10.5', 'true');
                 setFormDisabled(true);
                 alert("✨ 주문 제출이 완료되었습니다!");
                 updateState();
@@ -770,8 +741,7 @@
 
         function reOrder() {
             if(confirm("정말 메뉴를 다시 고르시겠습니까?")) {
-                const cacheKey = 'ordered_date_' + (state.sysDate || 'default');
-                localStorage.removeItem(cacheKey);
+                localStorage.removeItem('ordered_10.5');
                 setFormDisabled(false);
                 document.querySelectorAll('.item').forEach(el => el.classList.remove('active'));
                 selected = { res: null, user: null, menu: null, price: 0, rawMenuName: null, doubleFee: 0 };
@@ -795,7 +765,8 @@
         }
 
         async function saveTodayHistory() {
-            if(!confirm("⚠️ 오늘 확정된 실시간 정산 명단을 구글 시트 역대 장부(History)에 누적 기록합니까?")) return;
+            if(!confirm("⚠️ 오늘 확정된 실시간 정산 명단을 구글 시트 역대 장부(History)에 누적 기록합니까?\n(오늘 날짜에 이미 기록된 내역이 있다면 자동 덮어쓰기됩니다)")) return;
+            
             document.getElementById('loading').classList.remove('hidden');
             let finalRecords = [];
             let userOrdersMap = {};
