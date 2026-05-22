@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v10.1</title>
+    <title>Lunch Pro v11.0</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -34,8 +34,16 @@
         .admin-nav-item { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; }
         .admin-nav-item.active { background: var(--primary); color: #0f172a; }
         .badge-recent { position: absolute; top: 5px; right: 5px; background: #fba51a; color: #0f172a; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 8px; }
-        
-        /* 🎰 [④번 반영] 슬롯머신 역동적인 롤링 이펙트 애니메이션 스타일 */
+
+        /* 💡 [v11.0] 사이드 수량 조절 버튼 스타일 */
+        .side-qty-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1e293b; }
+        .side-qty-label { font-size: 13px; color: #e2e8f0; flex: 1; }
+        .side-qty-price { font-size: 12px; color: #94a3b8; margin: 0 10px; }
+        .side-qty-ctrl { display: flex; align-items: center; gap: 8px; }
+        .side-qty-btn { width: 28px; height: 28px; border-radius: 8px; border: 1px solid #475569; background: #334155; color: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
+        .side-qty-btn:hover { background: var(--primary); color: #0f172a; border-color: var(--primary); }
+        .side-qty-num { min-width: 20px; text-align: center; font-weight: bold; color: var(--primary); }
+
         @keyframes slotBlurEffect {
             0% { transform: scale(1.0); filter: blur(0px); background: #0f172a; border-color: #334155; }
             50% { transform: scale(1.05); filter: blur(2px); background: rgba(244, 63, 94, 0.3); border-color: var(--accent); color: #ffffff; }
@@ -111,10 +119,13 @@
             <div id="adminTabContent1" class="card" style="border: 1px solid var(--primary); padding: 20px;">
                 <button class="btn-sub" onclick="copyRecallNotice()">🚨 미입력자 소환 메신저 문구 복사</button>
                 
+                <!-- 💡 [v11.0] 사이드 메뉴 수량 조절 UI로 교체 -->
                 <div id="sideMenuArea" class="hidden">
-                    <p style="font-size:13px; color:var(--primary); text-align:left; font-weight:bold;">✨ 사이드 메뉴 일괄 추가</p>
-                    <div class="grid" id="sideGrid" style="margin-bottom:20px;"></div>
+                    <p style="font-size:13px; color:var(--primary); text-align:left; font-weight:bold; margin-bottom:8px;">✨ 사이드 메뉴 수량 선택 후 [추가] 버튼을 눌러주세요</p>
+                    <div id="sideQtyList"></div>
+                    <button class="btn-sub" onclick="submitSideOrders()" style="margin-top:10px; border-color:var(--primary); color:var(--primary);">🛒 선택한 사이드 추가하기</button>
                 </div>
+
                 <div id="adminOrderList"></div>
                 <div id="adminSummary" class="summary-card"></div>
                 
@@ -144,7 +155,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbxccxoflanUia5d5so28pwBRgCvbSN_wwp9mj3wnvY3I2EyXC1uxQ2emwKtOF_NKddJ2w/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzcprZfvARcclPAvwCJ8So44m7-tUXo8cRRhmjX4DcUCqEK9vMxtKtyv3XR5yvWxNk2bw/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -153,6 +164,9 @@
         let selected = { res: null, user: null, menu: null, price: 0, rawMenuName: null, doubleFee: 0 };
         let excludedUsers = new Set(); 
         let timerInterval;
+
+        // 💡 [v11.0] 사이드 메뉴 수량 관리 객체 { "메뉴명": 수량 }
+        let sideQtyMap = {};
 
         async function updateState() {
             try {
@@ -287,14 +301,76 @@
             document.getElementById('adminTabContent2').classList.toggle('hidden', tabNum !== 2);
         }
 
+        // 💡 [v11.0] 사이드 수량 조절 UI 렌더링
+        function renderSideQtyUI() {
+            if(!state.sideMenus || state.sideMenus.length === 0) return;
+            const container = document.getElementById('sideQtyList');
+            container.innerHTML = '';
+            state.sideMenus.forEach(side => {
+                const cleanName = side.name.replace('(사이드)', '').trim();
+                if(!(cleanName in sideQtyMap)) sideQtyMap[cleanName] = 0;
+                container.innerHTML += `
+                    <div class="side-qty-row">
+                        <span class="side-qty-label">${cleanName}</span>
+                        <span class="side-qty-price">${Number(side.price).toLocaleString()}원</span>
+                        <div class="side-qty-ctrl">
+                            <button class="side-qty-btn" onclick="changeSideQty('${cleanName}', ${side.price}, -1)">−</button>
+                            <span class="side-qty-num" id="qty_${cleanName.replace(/\s/g,'_')}">${sideQtyMap[cleanName]}</span>
+                            <button class="side-qty-btn" onclick="changeSideQty('${cleanName}', ${side.price}, 1)">＋</button>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        function changeSideQty(cleanName, price, delta) {
+            sideQtyMap[cleanName] = Math.max(0, (sideQtyMap[cleanName] || 0) + delta);
+            const el = document.getElementById('qty_' + cleanName.replace(/\s/g,'_'));
+            if(el) el.innerText = sideQtyMap[cleanName];
+        }
+
+        // 💡 [v11.0] 선택된 수량만큼 사이드 주문 일괄 전송
+        async function submitSideOrders() {
+            const entries = Object.entries(sideQtyMap).filter(([_, qty]) => qty > 0);
+            if(entries.length === 0) return alert("수량을 1개 이상 선택해주세요!");
+
+            // 기존 사이드 주문 전체 삭제 후 재등록 방식
+            // → 서버에서 [사이드] 행은 append이므로 중복이 쌓임
+            // 따라서 여기선 현재 선택한 수량 전체를 한번에 전송
+            let promises = [];
+            entries.forEach(([cleanName, qty]) => {
+                const sideObj = state.sideMenus.find(s => s.name.replace('(사이드)', '').trim() === cleanName);
+                if(!sideObj) return;
+                for(let i = 0; i < qty; i++) {
+                    promises.push(fetch(GAS_URL, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            type: "ORDER",
+                            userName: `[사이드] ${sideObj.name}`,
+                            restaurant: state.winner,
+                            menu: sideObj.name,
+                            price: sideObj.price
+                        })
+                    }));
+                }
+            });
+
+            await Promise.all(promises);
+
+            // 수량 초기화
+            Object.keys(sideQtyMap).forEach(k => sideQtyMap[k] = 0);
+            renderSideQtyUI();
+            alert("✅ 사이드 메뉴가 추가되었습니다!");
+            updateState();
+        }
+
         function renderAdminDashboard() {
             document.getElementById('adminDashboard').classList.remove('hidden');
+
+            // 사이드 메뉴 수량 UI
             const sideArea = document.getElementById('sideMenuArea');
             if(state.sideMenus && state.sideMenus.length > 0) {
                 sideArea.classList.remove('hidden');
-                if(!document.getElementById('sideGrid').children.length) {
-                    renderGrid('sideGrid', state.sideMenus, (obj) => selectSide(obj), true);
-                }
+                renderSideQtyUI();
             }
 
             let listHtml = `<table class="admin-table"><tr><th>성함</th><th>메뉴</th><th>가격</th><th style="text-align:center;">제외</th></tr>`;
@@ -347,6 +423,7 @@
                 }
             });
 
+            // 💡 [v11.0] 사이드 행: 고유 키를 index 기반으로 유지 (기존과 동일)
             state.orderData.forEach((order, idx) => {
                 if (order.name.includes("[사이드]")) {
                     const uniqueKey = `side_${idx}`;
@@ -385,7 +462,6 @@
             document.getElementById('adminSummary').innerHTML = summaryHtml;
         }
 
-        // 💡 [①번 반영] 조회 룸 고도화: 날짜 및 식당 다중/단일 필터 세팅
         function renderHistoryLogRoom() {
             if(!state.historyData || state.historyData.length === 0) return;
             const resSelect = document.getElementById('filterRestaurant');
@@ -409,7 +485,6 @@
             const tbody = document.getElementById('historyTableBody');
             
             let filteredData = state.historyData;
-
             if(selectedRes) { filteredData = filteredData.filter(h => h.restaurant === selectedRes); }
             if(selectedDate) { filteredData = filteredData.filter(h => h.date === selectedDate); }
 
@@ -481,12 +556,6 @@
             renderAdminDashboard();
         }
 
-        function selectSide(obj) {
-            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ 
-                type: "ORDER", userName: `[사이드] ${obj.name}`, restaurant: state.winner, menu: obj.name, price: obj.price 
-            }) }).then(updateState);
-        }
-
         function renderGrid(containerId, data, callback, isMenu = false) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
@@ -503,7 +572,6 @@
             });
         }
 
-        // 💡 [④번 반영] 메뉴 랜덤 슬롯머신에 블러 및 역동적인 컬러 스케일 이펙트 강화 효과 부여
         function randomMenuSlot() {
             const items = document.querySelectorAll('#menuGrid .item');
             if(!items.length) return;
@@ -511,12 +579,10 @@
             btn.disabled = true; btn.innerText = "🎰 메뉴 셔플 중...";
             
             let count = 0; 
-            const maxRolls = 20; // 셔플 회수를 늘려 더 긴장감 조성
+            const maxRolls = 20;
             
             const interval = setInterval(() => {
                 items.forEach(el => el.classList.remove('slot-rolling'));
-                
-                // 랜덤하게 무작위 타겟들에게 롤링 클래스 분사
                 const randIdx1 = Math.floor(Math.random() * items.length);
                 const randIdx2 = Math.floor(Math.random() * items.length);
                 items[randIdx1].classList.add('slot-rolling');
@@ -525,20 +591,15 @@
                 if(count++ > maxRolls) {
                     clearInterval(interval);
                     items.forEach(el => el.classList.remove('slot-rolling'));
-                    
-                    // 최종 한 장 엄선하여 자동 선택(클릭) 처리
                     const finalChoice = items[Math.floor(Math.random() * items.length)];
                     finalChoice.click();
-                    
-                    // 선택된 메뉴 강조 효과
                     finalChoice.style.transition = "0.3s";
                     finalChoice.style.transform = "scale(1.1)";
                     setTimeout(() => finalChoice.style.transform = "scale(1.0)", 300);
-
                     btn.disabled = false; 
                     btn.innerText = "🎲 슬롯머신 재가동";
                 }
-            }, 80); // 속도를 빠르게 당겨서 더 역동적으로 표현
+            }, 80);
         }
 
         function startLocalTimer(endTime) {
