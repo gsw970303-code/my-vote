@@ -36,6 +36,9 @@
         .admin-nav-item { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; }
         .admin-nav-item.active { background: var(--primary); color: #0f172a; }
         .badge-recent { position: absolute; top: 5px; right: 5px; background: #fba51a; color: #0f172a; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 8px; }
+        /* [v13.3] 식당 로테이션 경고 배지 */
+        .badge-visited { position: absolute; top: 5px; left: 5px; background: rgba(244,63,94,0.15); color: #f43f5e; border: 1px solid #f43f5e; font-size: 10px; font-weight: bold; padding: 2px 5px; border-radius: 6px; }
+        .badge-freq { position: absolute; bottom: 5px; left: 5px; background: rgba(0,255,136,0.15); color: var(--primary); border: 1px solid var(--primary); font-size: 10px; font-weight: bold; padding: 2px 5px; border-radius: 6px; pointer-events:none; }
 
         /* 사이드 수량 조절 UI */
         .side-qty-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1e293b; }
@@ -238,7 +241,7 @@
                 </div>
                 <div id="historyTableContainer" style="max-height:380px; overflow-y:auto; border:1px solid #334155; border-radius:12px;">
                     <table class="admin-table" id="viewHistoryTable" style="margin-top:0;">
-                        <thead><tr><th>날짜</th><th>식당</th><th>이름</th><th>메뉴</th><th>가격</th></tr></thead>
+                        <thead><tr><th>날짜</th><th>식당</th><th>이름</th><th>메뉴</th><th>가격</th><th></th></tr></thead>
                         <tbody id="historyTableBody"></tbody>
                     </table>
                 </div>
@@ -262,7 +265,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycby5meYXVAO7kk7XjJupROogqilOVOy3dkv727H5pEREK7lMHdixxIzrtsrvolGUgIdN/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzn4xDulI1j-dZAOrdDV8k1sPvYl110Q4RJ2yXchzX3lDKXjsQjJ4m3fq-x3fl0M0Y2Lg/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -358,9 +361,11 @@
                     renderGrid('resGrid', state.restaurants, (v) => {
                         selected.res = v;
                         sendVote();
-                        openVotePopup(v); // 💡 [v12.0] 팝업 오픈
+                        openVotePopup(v);
                     });
                 }
+                // [v13.3] 최근 방문 식당 배지 표시
+                renderVoteBadges();
                 startLocalTimer(state.endTime);
                 const percent = (state.voteCount / state.totalCount) * 100;
                 document.getElementById('voteProgress').style.width = percent + '%';
@@ -405,18 +410,58 @@
             }
         }
 
+        // [v13.3] 투표 화면: 최근 3일 내 방문 식당에 경고 배지
+        function renderVoteBadges() {
+            if(!state.historyData || !state.historyData.length) return;
+            const recentDates = [...new Set(state.historyData.map(h => h.date))].sort().reverse().slice(0, 3);
+            const recentRes = new Set(
+                state.historyData
+                    .filter(h => recentDates.includes(h.date))
+                    .map(h => h.restaurant)
+            );
+            document.querySelectorAll('#resGrid .item').forEach(el => {
+                el.querySelectorAll('.badge-visited').forEach(b => b.remove());
+                const resName = el.innerText.trim();
+                if(recentRes.has(resName)) {
+                    // 가장 최근 방문일 찾기
+                    const lastVisit = state.historyData.filter(h => h.restaurant === resName).map(h => h.date).sort().reverse()[0];
+                    el.innerHTML += `<span class="badge-visited">최근 방문 ${lastVisit.substring(5)}</span>`;
+                }
+            });
+        }
+
         function highlightRecentMenu() {
             if(!selected.user || !state.historyData) return;
-            const myHistory = state.historyData.filter(h => h.name === selected.user && h.restaurant === state.winner);
+            // [v13.3] 메인 메뉴만 필터 (개인사이드 제외)
+            const myHistory = state.historyData.filter(h =>
+                h.name === selected.user &&
+                h.restaurant === state.winner &&
+                !h.menu.includes('(개인사이드)') &&
+                !h.menu.includes('(사이드)')
+            );
+
+            // 메뉴별 빈도 집계
+            const freqMap = {};
+            myHistory.forEach(h => {
+                const clean = h.menu.replace(' (곱빼기)', '').replace(/\(곱빼기 가능:.*\)/g, '').trim();
+                freqMap[clean] = (freqMap[clean] || 0) + 1;
+            });
+            const maxFreq = Math.max(0, ...Object.values(freqMap));
+
             document.querySelectorAll('#menuGrid .item').forEach(el => {
-                const badge = el.querySelector('.badge-recent');
-                if(badge) badge.remove();
-                if(myHistory.length > 0) {
-                    const cleanItemName = el.innerText.split('\n')[0].replace(/\(곱빼기 가능:.*\)/g, '').trim();
-                    const cleanHistoryName = myHistory[myHistory.length - 1].menu.replace(' (곱빼기)', '').replace(/\(곱빼기 가능:.*\)/g, '').trim();
-                    if(cleanItemName === cleanHistoryName) {
-                        el.innerHTML += `<span class="badge-recent">늘 먹던 것 ⭐</span>`;
-                    }
+                // 기존 배지 전부 제거
+                el.querySelectorAll('.badge-recent, .badge-freq').forEach(b => b.remove());
+
+                const cleanItemName = el.innerText.split('\n')[0].replace(/\(곱빼기 가능:.*\)/g, '').trim();
+                const freq = freqMap[cleanItemName] || 0;
+                if(freq === 0) return;
+
+                if(freq === maxFreq) {
+                    // 가장 많이 먹은 메뉴: 기존 ⭐ 배지
+                    el.innerHTML += `<span class="badge-recent">${freq > 1 ? freq + '회 단골 ⭐' : '늘 먹던 것 ⭐'}</span>`;
+                } else {
+                    // 먹은 적 있지만 최다는 아닌 경우: 녹색 배지
+                    el.innerHTML += `<span class="badge-freq">${freq}회 경험</span>`;
                 }
             });
         }
@@ -648,18 +693,34 @@
             tbody.innerHTML = '';
             let rev = [...filteredData].reverse();
             if(rev.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b;">조건에 맞는 내역이 없습니다.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#64748b;">조건에 맞는 내역이 없습니다.</td></tr>`;
                 return;
             }
+            // [v13.3] 날짜별로 첫 행에만 삭제 버튼 노출
+            let renderedDates = new Set();
             rev.forEach(h => {
+                const isFirstOfDate = !renderedDates.has(h.date);
+                renderedDates.add(h.date);
                 tbody.innerHTML += `<tr>
                     <td>${h.date.substring(5)}</td>
                     <td>${h.restaurant}</td>
                     <td>${h.name}</td>
                     <td>${h.menu}</td>
                     <td>${Number(h.price).toLocaleString()}원</td>
+                    <td>${isFirstOfDate ? `<button onclick="deleteHistoryDate('${h.date}')" style="background:rgba(244,63,94,0.15);border:1px solid #f43f5e;color:#f43f5e;border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;white-space:nowrap;">🗑 삭제</button>` : ''}</td>
                 </tr>`;
             });
+        }
+
+        // [v13.3] 날짜별 히스토리 삭제
+        async function deleteHistoryDate(date) {
+            if(!confirm(`${date} 날짜의 히스토리 전체를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
+            await fetch(GAS_URL, {
+                method: "POST",
+                body: JSON.stringify({ type: "DELETE_HISTORY", date: date })
+            });
+            alert("삭제되었습니다.");
+            updateState();
         }
 
         // [v13.2] 통계 탭 렌더링
@@ -669,24 +730,31 @@
                 return;
             }
 
-            // 필터 셀렉트 옵션 갱신 (선택값 보존)
             const empSel = document.getElementById('statsFilterEmp');
             const resSel = document.getElementById('statsFilterRes');
             const prevEmp = empSel.value;
             const prevRes = resSel.value;
 
-            let uniqueEmps = [...new Set(state.historyData.filter(h => !h.name.includes('[사이드]')).map(h => h.name))].sort();
+            // [v13.3] 메인 메뉴 정의: [사이드], (개인사이드) 모두 제외
+            const isMainMenu = h =>
+                !h.name.includes('[사이드]') &&
+                !h.menu.includes('(개인사이드)') &&
+                !h.menu.includes('(사이드)');
+
+            const mainData = state.historyData.filter(isMainMenu);
+
+            let uniqueEmps = [...new Set(mainData.map(h => h.name))].sort();
             empSel.innerHTML = '<option value="">전체 인원</option>';
             uniqueEmps.forEach(e => { empSel.innerHTML += `<option value="${e}">${e}</option>`; });
             if(prevEmp) empSel.value = prevEmp;
 
-            let uniqueRes = [...new Set(state.historyData.map(h => h.restaurant))].sort();
+            let uniqueRes = [...new Set(mainData.map(h => h.restaurant))].sort();
             resSel.innerHTML = '<option value="">전체 식당</option>';
             uniqueRes.forEach(r => { resSel.innerHTML += `<option value="${r}">${r}</option>`; });
             if(prevRes) resSel.value = prevRes;
 
-            // 데이터 필터링
-            let data = state.historyData.filter(h => !h.name.includes('[사이드]'));
+            // 필터 적용
+            let data = [...mainData];
             if(empSel.value) data = data.filter(h => h.name === empSel.value);
             if(resSel.value) data = data.filter(h => h.restaurant === resSel.value);
 
@@ -695,62 +763,71 @@
                 return;
             }
 
-            // --- 집계 ---
-            const totalCount = data.length;
+            // [v13.3] 식사 횟수: (날짜 + 이름) 기준 중복 제거 → 같은 날 같은 사람의 개인사이드 등 복수 행 방지
+            const mealSet = new Set(data.map(h => h.date + '_' + h.name));
+            const mealCount = mealSet.size;
+
+            // 누적 지출: 메인 메뉴 가격만 합산
             const totalSpend = data.reduce((s, h) => s + (Number(h.price) || 0), 0);
 
-            // 식당별 방문 횟수
-            const resCounts = {};
-            data.forEach(h => { resCounts[h.restaurant] = (resCounts[h.restaurant] || 0) + 1; });
+            // 식당별 방문 횟수 (식사 단위 중복 제거)
+            const resMealSet = {};
+            data.forEach(h => {
+                const key = h.date + '_' + h.name;
+                if(!resMealSet[h.restaurant]) resMealSet[h.restaurant] = new Set();
+                resMealSet[h.restaurant].add(key);
+            });
+            const resCounts = Object.fromEntries(Object.entries(resMealSet).map(([r, s]) => [r, s.size]));
             const resSorted = Object.entries(resCounts).sort((a,b) => b[1]-a[1]);
 
-            // 메뉴별 주문 횟수
+            // 메뉴별 주문 횟수 (곱빼기 여부 무시하고 같은 메뉴로 합산)
             const menuCounts = {};
             data.forEach(h => {
-                const cleanMenu = h.menu.replace('(개인사이드)','').replace('(곱빼기)','').trim();
+                const cleanMenu = h.menu.replace(' (곱빼기)', '').replace(/\(곱빼기 가능:.*\)/g, '').trim();
                 const key = h.restaurant + ' / ' + cleanMenu;
                 menuCounts[key] = (menuCounts[key] || 0) + 1;
             });
             const menuSorted = Object.entries(menuCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
 
-            // 인원별 지출 (전체 인원 보기일 때만)
+            // 인원별 지출 (전체 인원 보기일 때)
             let empSpendHtml = '';
             if(!empSel.value) {
                 const empSpend = {};
-                const empCount = {};
+                const empMeals = {};
                 data.forEach(h => {
                     empSpend[h.name] = (empSpend[h.name] || 0) + (Number(h.price) || 0);
-                    empCount[h.name] = (empCount[h.name] || 0) + 1;
+                    if(!empMeals[h.name]) empMeals[h.name] = new Set();
+                    empMeals[h.name].add(h.date + '_' + h.name);
                 });
                 const empSorted = Object.entries(empSpend).sort((a,b) => b[1]-a[1]);
                 empSpendHtml = `
                 <div style="margin-top:18px;">
                     <div style="font-size:13px; color:var(--primary); font-weight:bold; margin-bottom:8px;">👤 인원별 누적 지출</div>
                     <table class="admin-table">
-                        <thead><tr><th>이름</th><th>횟수</th><th>누적 지출</th><th>평균</th></tr></thead>
+                        <thead><tr><th>이름</th><th>식사 횟수</th><th>누적 지출</th><th>평균</th></tr></thead>
                         <tbody>
-                        ${empSorted.map(([name, spend]) => `
-                            <tr>
+                        ${empSorted.map(([name, spend]) => {
+                            const cnt = empMeals[name].size;
+                            return `<tr>
                                 <td>${name}</td>
-                                <td>${empCount[name]}회</td>
+                                <td>${cnt}회</td>
                                 <td>${spend.toLocaleString()}원</td>
-                                <td>${Math.round(spend/empCount[name]).toLocaleString()}원</td>
-                            </tr>`).join('')}
+                                <td>${Math.round(spend/cnt).toLocaleString()}원</td>
+                            </tr>`;
+                        }).join('')}
                         </tbody>
                     </table>
                 </div>`;
             }
 
-            // 날짜별 팀 지출 (최근 10일)
-            const dateTotals = {};
-            state.historyData.forEach(h => { // 사이드 포함 전체 집계
-                dateTotals[h.date] = (dateTotals[h.date] || 0) + (Number(h.price) || 0);
-            });
-            const dateFiltered = empSel.value || resSel.value ? null : 
-                Object.entries(dateTotals).sort((a,b) => b[0].localeCompare(a[0])).slice(0,10);
-
+            // 날짜별 팀 총 지출 (최근 10일, 필터 없을 때만)
             let dateHtml = '';
-            if(dateFiltered) {
+            if(!empSel.value && !resSel.value) {
+                const dateTotals = {};
+                state.historyData.forEach(h => {
+                    dateTotals[h.date] = (dateTotals[h.date] || 0) + (Number(h.price) || 0);
+                });
+                const dateFiltered = Object.entries(dateTotals).sort((a,b) => b[0].localeCompare(a[0])).slice(0,10);
                 const maxSpend = Math.max(...dateFiltered.map(d => d[1]));
                 dateHtml = `
                 <div style="margin-top:18px;">
@@ -771,11 +848,10 @@
             }
 
             document.getElementById('statsContainer').innerHTML = `
-                <!-- 요약 카드 -->
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px;">
                     <div style="background:#0f172a; border-radius:12px; padding:14px; border:1px solid #334155; text-align:center;">
-                        <div style="font-size:22px; font-weight:800; color:var(--primary);">${totalCount}회</div>
-                        <div style="font-size:12px; color:#94a3b8; margin-top:2px;">총 주문 횟수</div>
+                        <div style="font-size:22px; font-weight:800; color:var(--primary);">${mealCount}회</div>
+                        <div style="font-size:12px; color:#94a3b8; margin-top:2px;">식사 횟수</div>
                     </div>
                     <div style="background:#0f172a; border-radius:12px; padding:14px; border:1px solid #334155; text-align:center;">
                         <div style="font-size:22px; font-weight:800; color:#fba51a;">${totalSpend.toLocaleString()}원</div>
@@ -783,7 +859,6 @@
                     </div>
                 </div>
 
-                <!-- 식당 방문 순위 -->
                 <div style="margin-bottom:18px;">
                     <div style="font-size:13px; color:var(--primary); font-weight:bold; margin-bottom:8px;">🏆 식당 방문 순위</div>
                     ${resSorted.map(([res, cnt], i) => {
@@ -791,7 +866,7 @@
                         const medals = ['🥇','🥈','🥉'];
                         return `<div style="margin-bottom:8px;">
                             <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:3px;">
-                                <span>${medals[i] || '  '} ${res}</span>
+                                <span>${medals[i] || '　'} ${res}</span>
                                 <span style="color:var(--primary); font-weight:bold;">${cnt}회</span>
                             </div>
                             <div style="background:#334155; border-radius:4px; height:6px; overflow:hidden;">
@@ -801,15 +876,14 @@
                     }).join('')}
                 </div>
 
-                <!-- 메뉴 Top5 -->
                 <div>
                     <div style="font-size:13px; color:var(--primary); font-weight:bold; margin-bottom:8px;">🍽 자주 먹은 메뉴 Top 5</div>
                     <table class="admin-table">
                         <thead><tr><th>식당 / 메뉴</th><th style="text-align:right;">횟수</th></tr></thead>
                         <tbody>
-                        ${menuSorted.map(([key, cnt]) => `
-                            <tr><td>${key}</td><td style="text-align:right; color:var(--primary); font-weight:bold;">${cnt}회</td></tr>
-                        `).join('')}
+                        ${menuSorted.map(([key, cnt]) =>
+                            `<tr><td>${key}</td><td style="text-align:right; color:var(--primary); font-weight:bold;">${cnt}회</td></tr>`
+                        ).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -819,7 +893,7 @@
             `;
         }
 
-        function saveTodayHistory() {
+                function saveTodayHistory() {
             let recordsToSave = [];
             let unselectedUsers = []; 
             let userOrdersMap = {};
