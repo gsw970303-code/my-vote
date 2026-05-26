@@ -84,6 +84,31 @@
             font-weight: bold; cursor: pointer;
         }
 
+        /* 💡 [v13.0] 주문 확인 팝업 */
+        .order-popup-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; backdrop-filter: blur(4px);
+            opacity: 0; transition: opacity 0.2s;
+            pointer-events: none;
+        }
+        .order-popup-overlay.show { opacity: 1; pointer-events: auto; }
+        .order-popup {
+            background: var(--card); border: 2px solid #fba51a;
+            border-radius: 24px; padding: 32px 28px; max-width: 320px; width: 90%;
+            text-align: center;
+            transform: scale(0.85); transition: transform 0.2s;
+        }
+        .order-popup-overlay.show .order-popup { transform: scale(1); }
+        .order-popup-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #334155; font-size: 14px; }
+        .order-popup-row:last-of-type { border-bottom: none; }
+        .order-popup-label { color: #94a3b8; }
+        .order-popup-value { color: white; font-weight: bold; text-align: right; max-width: 60%; }
+        .order-popup-total { margin-top: 12px; padding: 12px; background: rgba(251,165,26,0.1); border-radius: 12px; border: 1px solid rgba(251,165,26,0.3); font-size: 15px; font-weight: bold; color: #fba51a; }
+        .order-popup-btn-row { display: flex; gap: 10px; margin-top: 16px; }
+        .order-popup-cancel { flex: 1; padding: 12px; background: #334155; color: white; border: 1px solid #475569; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        .order-popup-confirm { flex: 2; padding: 12px; background: #fba51a; color: #0f172a; border: none; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; }
+
         /* 💡 [v12.0] 관리자 30초 연장 버튼 */
         .btn-extend { width: 100%; padding: 10px; background: rgba(251,165,26,0.15); color: #fba51a; border: 1px solid #fba51a; border-radius: 10px; font-size: 13px; font-weight: bold; cursor: pointer; margin-bottom: 12px; }
         .btn-extend:hover { background: #fba51a; color: #0f172a; }
@@ -101,6 +126,20 @@
                 <span style="font-size:12px;">식당 버튼을 다시 누르면 변경됩니다.</span>
             </div>
             <button class="vote-popup-close" onclick="closeVotePopup()">확인</button>
+        </div>
+    </div>
+
+    <!-- 💡 [v13.0] 주문 확인 팝업 -->
+    <div class="order-popup-overlay" id="orderPopup">
+        <div class="order-popup">
+            <div style="font-size:42px; margin-bottom:12px;">🛒</div>
+            <div style="font-size:17px; font-weight:800; color:#fba51a; margin-bottom:16px;">주문 내역 확인</div>
+            <div id="orderPopupBody"></div>
+            <div id="orderPopupTotal" class="order-popup-total"></div>
+            <div class="order-popup-btn-row">
+                <button class="order-popup-cancel" onclick="closeOrderPopup()">다시 선택</button>
+                <button class="order-popup-confirm" onclick="confirmOrder()">✅ 주문 확정</button>
+            </div>
         </div>
     </div>
 
@@ -219,7 +258,9 @@
         let selected = { res: null, user: null, menu: null, price: 0, rawMenuName: null, doubleFee: 0 };
         let excludedUsers = new Set(); 
         let timerInterval;
+        let pollingInterval;   // 💡 [v13.0] 가변 폴링 간격 관리
         let sideQtyMap = {};
+        let pendingOrder = null; // 💡 [v13.0] 확인 팝업 대기 중인 주문 데이터
 
         async function updateState() {
             try {
@@ -310,6 +351,8 @@
                 document.getElementById('voteCountText').innerText = `참여 현황: ${state.voteCount} / ${state.totalCount}`;
 
             } else if(state.status === "ORDERING") {
+                // 💡 [v13.0] 주문 화면 진입 시 빠른 폴링 → 일반 폴링으로 복귀
+                setNormalPolling();
                 document.getElementById('orderingSection').classList.remove('hidden');
                 document.getElementById('winnerTitle').innerText = `🏆 ${state.winner}`;
                 
@@ -679,12 +722,32 @@
             timerInterval = setInterval(() => {
                 const diff = endTime - new Date().getTime();
                 const timerEl = document.getElementById('voteTimer');
-                if(diff <= 0) { clearInterval(timerInterval); updateState(); return; }
+                if(diff <= 0) {
+                    clearInterval(timerInterval);
+                    // 💡 [v13.0] 타이머 종료 순간 즉시 1초 폴링으로 전환 → 화면 전환 빠르게
+                    setFastPolling();
+                    return;
+                }
                 const m = Math.floor(diff / 60000), s = Math.floor((diff % 60000) / 1000);
                 timerEl.innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-                // 30초 이하면 빨간색 경고
                 timerEl.classList.toggle('warning', diff <= 30000);
+
+                // 💡 [v13.0] 10초 이하 진입 시 폴링 2초로 단축
+                if(diff <= 10000 && diff > 0) setFastPolling();
             }, 200);
+        }
+
+        // 💡 [v13.0] 폴링 간격 조절 함수
+        function setFastPolling() {
+            if(pollingInterval && pollingInterval._isFast) return; // 이미 빠른 폴링 중이면 중복 방지
+            if(pollingInterval) clearInterval(pollingInterval);
+            const interval = setInterval(updateState, 1000);
+            interval._isFast = true;
+            pollingInterval = interval;
+        }
+        function setNormalPolling() {
+            if(pollingInterval) clearInterval(pollingInterval);
+            pollingInterval = setInterval(updateState, 5000);
         }
 
         function startSystem() {
@@ -698,24 +761,59 @@
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) });
         }
         
+        // 💡 [v13.0] 주문 팝업 열기: 제출 전 내역 보여주기
         function submitOrder() {
             if(!selected.user || !selected.menu) return alert("이름과 메인 메뉴를 선택해주세요!");
+
             let checkedSides = [];
             document.querySelectorAll('.pside-cb:checked').forEach(cb => {
                 checkedSides.push({ name: cb.getAttribute('data-name'), price: Number(cb.getAttribute('data-price')) });
             });
-            localStorage.setItem(todayKey, 'true'); // 💡 날짜 기반 키
-            setFormDisabled(true);
+
             let finalMainPrice = selected.price;
             const doubleCb = document.getElementById('doubleSizeCb');
             if(doubleCb && doubleCb.checked) finalMainPrice += selected.doubleFee;
+
+            // 팝업에 표시할 내역 구성
+            let totalPrice = finalMainPrice;
+            let rows = `
+                <div class="order-popup-row"><span class="order-popup-label">👤 이름</span><span class="order-popup-value">${selected.user}</span></div>
+                <div class="order-popup-row"><span class="order-popup-label">🍽 메뉴</span><span class="order-popup-value">${selected.menu}</span></div>
+                <div class="order-popup-row"><span class="order-popup-label">💰 메인 가격</span><span class="order-popup-value">${finalMainPrice.toLocaleString()}원</span></div>`;
+            checkedSides.forEach(side => {
+                totalPrice += Number(side.price);
+                rows += `<div class="order-popup-row"><span class="order-popup-label">🥤 ${side.name.replace('(개인사이드)','').trim()}</span><span class="order-popup-value">+${Number(side.price).toLocaleString()}원</span></div>`;
+            });
+            document.getElementById('orderPopupBody').innerHTML = rows;
+            document.getElementById('orderPopupTotal').innerHTML = `💸 합계 ${totalPrice.toLocaleString()}원`;
+
+            // 주문 데이터 임시 저장
+            pendingOrder = { finalMainPrice, checkedSides };
+
+            document.getElementById('orderPopup').classList.add('show');
+        }
+
+        function closeOrderPopup() {
+            document.getElementById('orderPopup').classList.remove('show');
+            pendingOrder = null;
+        }
+
+        // 💡 [v13.0] 팝업에서 확정 버튼 눌렀을 때 실제 제출
+        function confirmOrder() {
+            if(!pendingOrder) return;
+            document.getElementById('orderPopup').classList.remove('show');
+
+            localStorage.setItem(todayKey, 'true');
+            setFormDisabled(true);
+
             fetch(GAS_URL, {
                 method: "POST",
                 body: JSON.stringify({
                     type: "MULTI_ORDER", userName: selected.user, restaurant: state.winner,
-                    mainMenu: selected.menu, mainPrice: finalMainPrice, sides: checkedSides
+                    mainMenu: selected.menu, mainPrice: pendingOrder.finalMainPrice, sides: pendingOrder.checkedSides
                 })
             }).then(updateState);
+            pendingOrder = null;
         }
 
         function reOrder() { localStorage.removeItem(todayKey); setFormDisabled(false); updateState(); }
@@ -724,7 +822,8 @@
             document.getElementById('orderedMsg').classList.toggle('hidden', !disabled);
         }
 
-        setInterval(updateState, 5000);
+        // 💡 [v13.0] 초기 폴링은 5초, 타이머 종료 임박 시 자동으로 1초로 단축됨
+        setNormalPolling();
         updateState();
     </script>
 </body>
