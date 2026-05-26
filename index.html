@@ -271,7 +271,9 @@
         const deviceId = localStorage.getItem('deviceId');
 
         // 💡 [v12.0] 주문 완료 캐시 키: 날짜 기반으로 변경 → 날마다 자동 초기화
-        const todayKey = 'ordered_' + new Date().toLocaleDateString('ko-KR', {year:'numeric', month:'2-digit', day:'2-digit'}).replace(/\. /g,'-').replace('.','');
+        // [v13.4] 브라우저/OS 환경 무관하게 항상 동일한 포맷으로 오늘 날짜 키 생성
+        const _d = new Date();
+        const todayKey = 'ordered_' + _d.getFullYear() + '-' + String(_d.getMonth()+1).padStart(2,'0') + '-' + String(_d.getDate()).padStart(2,'0');
         
         let state = {};
         let selected = { res: null, user: null, menu: null, price: 0, rawMenuName: null, doubleFee: 0 };
@@ -691,24 +693,44 @@
             if(selectedRes) filteredData = filteredData.filter(h => h.restaurant === selectedRes);
             if(selectedDate) filteredData = filteredData.filter(h => h.date === selectedDate);
             tbody.innerHTML = '';
-            let rev = [...filteredData].reverse();
-            if(rev.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#64748b;">조건에 맞는 내역이 없습니다.</td></tr>`;
+
+            if(filteredData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b; padding:16px;">조건에 맞는 내역이 없습니다.</td></tr>`;
                 return;
             }
-            // [v13.3] 날짜별로 첫 행에만 삭제 버튼 노출
-            let renderedDates = new Set();
-            rev.forEach(h => {
-                const isFirstOfDate = !renderedDates.has(h.date);
-                renderedDates.add(h.date);
-                tbody.innerHTML += `<tr>
-                    <td>${h.date.substring(5)}</td>
-                    <td>${h.restaurant}</td>
-                    <td>${h.name}</td>
-                    <td>${h.menu}</td>
-                    <td>${Number(h.price).toLocaleString()}원</td>
-                    <td>${isFirstOfDate ? `<button onclick="deleteHistoryDate('${h.date}')" style="background:rgba(244,63,94,0.15);border:1px solid #f43f5e;color:#f43f5e;border-radius:6px;padding:3px 7px;font-size:11px;cursor:pointer;white-space:nowrap;">🗑 삭제</button>` : ''}</td>
+
+            // [v13.4] 날짜별로 그룹핑 후 날짜 헤더 행에 일괄 삭제 버튼 배치
+            const grouped = {};
+            [...filteredData].reverse().forEach(h => {
+                if(!grouped[h.date]) grouped[h.date] = [];
+                grouped[h.date].push(h);
+            });
+
+            Object.entries(grouped).forEach(([date, rows]) => {
+                // 날짜 헤더 행: 날짜 + 식당 + 삭제 버튼
+                const restaurants = [...new Set(rows.map(r => r.restaurant))].join(', ');
+                tbody.innerHTML += `<tr style="background:#1a2a1a; border-top:2px solid #334155;">
+                    <td colspan="2" style="color:var(--primary); font-weight:bold; font-size:13px; padding:10px 12px;">
+                        📅 ${date.substring(5)} &nbsp;<span style="color:#94a3b8; font-weight:normal;">${restaurants}</span>
+                    </td>
+                    <td colspan="3" style="text-align:right; padding:10px 12px;">
+                        <button onclick="deleteHistoryDate('${date}')"
+                            style="background:rgba(244,63,94,0.15);border:1px solid #f43f5e;color:#f43f5e;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:bold;cursor:pointer;">
+                            🗑 ${date.substring(5)} 전체 삭제
+                        </button>
+                    </td>
                 </tr>`;
+
+                // 해당 날짜의 각 행
+                rows.forEach(h => {
+                    tbody.innerHTML += `<tr>
+                        <td style="color:#64748b; font-size:12px;">${h.date.substring(5)}</td>
+                        <td>${h.restaurant}</td>
+                        <td>${h.name}</td>
+                        <td>${h.menu}</td>
+                        <td>${Number(h.price).toLocaleString()}원</td>
+                    </tr>`;
+                });
             });
         }
 
