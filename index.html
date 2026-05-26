@@ -208,6 +208,7 @@
             <div class="admin-navbar">
                 <div class="admin-nav-item active" id="tabBtn1" onclick="switchAdminTab(1)">📊 실시간 정산</div>
                 <div class="admin-nav-item" id="tabBtn2" onclick="switchAdminTab(2)">📂 히스토리 장부</div>
+                <div class="admin-nav-item" id="tabBtn3" onclick="switchAdminTab(3)">📈 통계</div>
             </div>
 
             <div id="adminTabContent1" class="card" style="border: 1px solid var(--primary); padding: 20px;">
@@ -241,6 +242,21 @@
                         <tbody id="historyTableBody"></tbody>
                     </table>
                 </div>
+            </div>
+
+            <div id="adminTabContent3" class="card hidden" style="border: 1px solid #475569; padding: 20px; text-align:left;">
+                <h3 style="color:var(--primary); margin-top:0;">📈 팀 점심 통계</h3>
+
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <select id="statsFilterEmp" style="flex:1; padding:10px; border-radius:8px; background:#0f172a; color:white; border:1px solid #475569; font-size:13px;" onchange="renderHistoryStats()">
+                        <option value="">전체 인원</option>
+                    </select>
+                    <select id="statsFilterRes" style="flex:1; padding:10px; border-radius:8px; background:#0f172a; color:white; border:1px solid #475569; font-size:13px;" onchange="renderHistoryStats()">
+                        <option value="">전체 식당</option>
+                    </select>
+                </div>
+
+                <div id="statsContainer"></div>
             </div>
         </div>
     </div>
@@ -433,10 +449,11 @@
         }
 
         function switchAdminTab(tabNum) {
-            document.getElementById('tabBtn1').classList.toggle('active', tabNum === 1);
-            document.getElementById('tabBtn2').classList.toggle('active', tabNum === 2);
-            document.getElementById('adminTabContent1').classList.toggle('hidden', tabNum !== 1);
-            document.getElementById('adminTabContent2').classList.toggle('hidden', tabNum !== 2);
+            [1,2,3].forEach(n => {
+                document.getElementById('tabBtn' + n).classList.toggle('active', tabNum === n);
+                document.getElementById('adminTabContent' + n).classList.toggle('hidden', tabNum !== n);
+            });
+            if(tabNum === 3) renderHistoryStats();
         }
 
         // 사이드 수량 조절 UI
@@ -600,17 +617,25 @@
 
         function renderHistoryLogRoom() {
             if(!state.historyData || state.historyData.length === 0) return;
+
+            // [v13.2] 선택값 보존 후 매번 완전 재렌더 -> 오늘 저장 날짜도 즉시 반영
             const resSelect = document.getElementById('filterRestaurant');
             const dateSelect = document.getElementById('filterDate');
-            if(resSelect.children.length === 1) {
-                let uniqueRes = [...new Set(state.historyData.map(h => h.restaurant))];
-                uniqueRes.forEach(r => { resSelect.innerHTML += `<option value="${r}">${r}</option>`; });
-            }
-            if(dateSelect.children.length === 1) {
-                let uniqueDates = [...new Set(state.historyData.map(h => h.date))].sort().reverse();
-                uniqueDates.forEach(d => { dateSelect.innerHTML += `<option value="${d}">${d}</option>`; });
-            }
+            const prevRes = resSelect.value;
+            const prevDate = dateSelect.value;
+
+            let uniqueRes = [...new Set(state.historyData.map(h => h.restaurant))];
+            resSelect.innerHTML = '<option value="">모든 식당 필터</option>';
+            uniqueRes.forEach(r => { resSelect.innerHTML += `<option value="${r}">${r}</option>`; });
+            if(prevRes) resSelect.value = prevRes;
+
+            let uniqueDates = [...new Set(state.historyData.map(h => h.date))].sort().reverse();
+            dateSelect.innerHTML = '<option value="">모든 날짜 필터</option>';
+            uniqueDates.forEach(d => { dateSelect.innerHTML += `<option value="${d}">${d}</option>`; });
+            if(prevDate) dateSelect.value = prevDate;
+
             filterHistoryTable();
+            renderHistoryStats();
         }
 
         function filterHistoryTable() {
@@ -635,6 +660,163 @@
                     <td>${Number(h.price).toLocaleString()}원</td>
                 </tr>`;
             });
+        }
+
+        // [v13.2] 통계 탭 렌더링
+        function renderHistoryStats() {
+            if(!state.historyData || state.historyData.length === 0) {
+                document.getElementById('statsContainer').innerHTML = '<p style="color:#64748b; text-align:center;">저장된 히스토리가 없습니다.</p>';
+                return;
+            }
+
+            // 필터 셀렉트 옵션 갱신 (선택값 보존)
+            const empSel = document.getElementById('statsFilterEmp');
+            const resSel = document.getElementById('statsFilterRes');
+            const prevEmp = empSel.value;
+            const prevRes = resSel.value;
+
+            let uniqueEmps = [...new Set(state.historyData.filter(h => !h.name.includes('[사이드]')).map(h => h.name))].sort();
+            empSel.innerHTML = '<option value="">전체 인원</option>';
+            uniqueEmps.forEach(e => { empSel.innerHTML += `<option value="${e}">${e}</option>`; });
+            if(prevEmp) empSel.value = prevEmp;
+
+            let uniqueRes = [...new Set(state.historyData.map(h => h.restaurant))].sort();
+            resSel.innerHTML = '<option value="">전체 식당</option>';
+            uniqueRes.forEach(r => { resSel.innerHTML += `<option value="${r}">${r}</option>`; });
+            if(prevRes) resSel.value = prevRes;
+
+            // 데이터 필터링
+            let data = state.historyData.filter(h => !h.name.includes('[사이드]'));
+            if(empSel.value) data = data.filter(h => h.name === empSel.value);
+            if(resSel.value) data = data.filter(h => h.restaurant === resSel.value);
+
+            if(data.length === 0) {
+                document.getElementById('statsContainer').innerHTML = '<p style="color:#64748b; text-align:center;">조건에 맞는 데이터가 없습니다.</p>';
+                return;
+            }
+
+            // --- 집계 ---
+            const totalCount = data.length;
+            const totalSpend = data.reduce((s, h) => s + (Number(h.price) || 0), 0);
+
+            // 식당별 방문 횟수
+            const resCounts = {};
+            data.forEach(h => { resCounts[h.restaurant] = (resCounts[h.restaurant] || 0) + 1; });
+            const resSorted = Object.entries(resCounts).sort((a,b) => b[1]-a[1]);
+
+            // 메뉴별 주문 횟수
+            const menuCounts = {};
+            data.forEach(h => {
+                const cleanMenu = h.menu.replace('(개인사이드)','').replace('(곱빼기)','').trim();
+                const key = h.restaurant + ' / ' + cleanMenu;
+                menuCounts[key] = (menuCounts[key] || 0) + 1;
+            });
+            const menuSorted = Object.entries(menuCounts).sort((a,b) => b[1]-a[1]).slice(0,5);
+
+            // 인원별 지출 (전체 인원 보기일 때만)
+            let empSpendHtml = '';
+            if(!empSel.value) {
+                const empSpend = {};
+                const empCount = {};
+                data.forEach(h => {
+                    empSpend[h.name] = (empSpend[h.name] || 0) + (Number(h.price) || 0);
+                    empCount[h.name] = (empCount[h.name] || 0) + 1;
+                });
+                const empSorted = Object.entries(empSpend).sort((a,b) => b[1]-a[1]);
+                empSpendHtml = `
+                <div style="margin-top:18px;">
+                    <div style="font-size:13px; color:var(--primary); font-weight:bold; margin-bottom:8px;">👤 인원별 누적 지출</div>
+                    <table class="admin-table">
+                        <thead><tr><th>이름</th><th>횟수</th><th>누적 지출</th><th>평균</th></tr></thead>
+                        <tbody>
+                        ${empSorted.map(([name, spend]) => `
+                            <tr>
+                                <td>${name}</td>
+                                <td>${empCount[name]}회</td>
+                                <td>${spend.toLocaleString()}원</td>
+                                <td>${Math.round(spend/empCount[name]).toLocaleString()}원</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>`;
+            }
+
+            // 날짜별 팀 지출 (최근 10일)
+            const dateTotals = {};
+            state.historyData.forEach(h => { // 사이드 포함 전체 집계
+                dateTotals[h.date] = (dateTotals[h.date] || 0) + (Number(h.price) || 0);
+            });
+            const dateFiltered = empSel.value || resSel.value ? null : 
+                Object.entries(dateTotals).sort((a,b) => b[0].localeCompare(a[0])).slice(0,10);
+
+            let dateHtml = '';
+            if(dateFiltered) {
+                const maxSpend = Math.max(...dateFiltered.map(d => d[1]));
+                dateHtml = `
+                <div style="margin-top:18px;">
+                    <div style="font-size:13px; color:var(--primary); font-weight:bold; margin-bottom:10px;">📅 날짜별 팀 총 지출 (최근 10일)</div>
+                    ${dateFiltered.map(([date, spend]) => {
+                        const pct = Math.round((spend/maxSpend)*100);
+                        return `<div style="margin-bottom:8px;">
+                            <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:3px;">
+                                <span style="color:#94a3b8;">${date.substring(5)}</span>
+                                <span style="color:white; font-weight:bold;">${spend.toLocaleString()}원</span>
+                            </div>
+                            <div style="background:#334155; border-radius:4px; height:8px; overflow:hidden;">
+                                <div style="height:100%; width:${pct}%; background:var(--primary); border-radius:4px; transition:0.4s;"></div>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>`;
+            }
+
+            document.getElementById('statsContainer').innerHTML = `
+                <!-- 요약 카드 -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px;">
+                    <div style="background:#0f172a; border-radius:12px; padding:14px; border:1px solid #334155; text-align:center;">
+                        <div style="font-size:22px; font-weight:800; color:var(--primary);">${totalCount}회</div>
+                        <div style="font-size:12px; color:#94a3b8; margin-top:2px;">총 주문 횟수</div>
+                    </div>
+                    <div style="background:#0f172a; border-radius:12px; padding:14px; border:1px solid #334155; text-align:center;">
+                        <div style="font-size:22px; font-weight:800; color:#fba51a;">${totalSpend.toLocaleString()}원</div>
+                        <div style="font-size:12px; color:#94a3b8; margin-top:2px;">누적 지출</div>
+                    </div>
+                </div>
+
+                <!-- 식당 방문 순위 -->
+                <div style="margin-bottom:18px;">
+                    <div style="font-size:13px; color:var(--primary); font-weight:bold; margin-bottom:8px;">🏆 식당 방문 순위</div>
+                    ${resSorted.map(([res, cnt], i) => {
+                        const pct = Math.round((cnt/resSorted[0][1])*100);
+                        const medals = ['🥇','🥈','🥉'];
+                        return `<div style="margin-bottom:8px;">
+                            <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:3px;">
+                                <span>${medals[i] || '  '} ${res}</span>
+                                <span style="color:var(--primary); font-weight:bold;">${cnt}회</span>
+                            </div>
+                            <div style="background:#334155; border-radius:4px; height:6px; overflow:hidden;">
+                                <div style="height:100%; width:${pct}%; background:var(--primary); border-radius:4px;"></div>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+
+                <!-- 메뉴 Top5 -->
+                <div>
+                    <div style="font-size:13px; color:var(--primary); font-weight:bold; margin-bottom:8px;">🍽 자주 먹은 메뉴 Top 5</div>
+                    <table class="admin-table">
+                        <thead><tr><th>식당 / 메뉴</th><th style="text-align:right;">횟수</th></tr></thead>
+                        <tbody>
+                        ${menuSorted.map(([key, cnt]) => `
+                            <tr><td>${key}</td><td style="text-align:right; color:var(--primary); font-weight:bold;">${cnt}회</td></tr>
+                        `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                ${empSpendHtml}
+                ${dateHtml}
+            `;
         }
 
         function saveTodayHistory() {
