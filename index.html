@@ -40,6 +40,19 @@
         .badge-visited { position: absolute; top: 5px; left: 5px; background: rgba(244,63,94,0.15); color: #f43f5e; border: 1px solid #f43f5e; font-size: 10px; font-weight: bold; padding: 2px 5px; border-radius: 6px; }
         .badge-freq { position: absolute; bottom: 5px; left: 5px; background: rgba(0,255,136,0.15); color: var(--primary); border: 1px solid var(--primary); font-size: 10px; font-weight: bold; padding: 2px 5px; border-radius: 6px; pointer-events:none; }
 
+        /* [v13.6] 불참 버튼 */
+        .btn-absent { width:100%; padding:12px; background:rgba(244,63,94,0.12); color:#f43f5e; border:1px solid #f43f5e; border-radius:12px; font-size:14px; font-weight:bold; cursor:pointer; margin-bottom:12px; transition:0.15s; }
+        .btn-absent:hover { background:#f43f5e; color:white; }
+        /* [v13.6] 실시간 Top3 위젯 */
+        .top3-widget { background:#0f172a; border:1px solid #334155; border-radius:16px; padding:14px; margin-bottom:16px; text-align:left; }
+        .top3-title { font-size:12px; color:#94a3b8; font-weight:bold; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+        .top3-row { display:flex; align-items:center; gap:8px; margin-bottom:7px; }
+        .top3-rank { font-size:14px; width:20px; text-align:center; flex-shrink:0; }
+        .top3-bar-wrap { flex:1; background:#1e293b; border-radius:4px; height:8px; overflow:hidden; }
+        .top3-bar { height:100%; border-radius:4px; transition:width 0.4s; }
+        .top3-label { font-size:12px; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:130px; }
+        .top3-count { font-size:12px; color:var(--primary); font-weight:bold; white-space:nowrap; }
+
         /* [v13.5] 현장주문 참석 선택 버튼 */
         .attend-btn { flex:1; padding:18px 10px; border-radius:16px; border:2px solid #334155; background:#0f172a; cursor:pointer; font-size:22px; transition:0.15s; }
         .attend-btn.selected-yes { background:rgba(0,255,136,0.15); border-color:var(--primary); }
@@ -186,6 +199,13 @@
             <div class="card">
                 <h2 id="winnerTitle" style="color:var(--primary)">🏆 오늘의 식당</h2>
                 <div id="formContainer">
+                    <!-- [v13.6] 불참 버튼 -->
+                    <button class="btn-absent" onclick="submitAbsent()">🚫 오늘 점심 불참</button>
+                    <!-- [v13.6] 실시간 Top3 위젯 -->
+                    <div class="top3-widget" id="top3Widget">
+                        <div class="top3-title">🔥 실시간 메뉴 현황 <span id="top3UpdatedAt" style="color:#475569; font-weight:normal;"></span></div>
+                        <div id="top3Body"><span style="color:#475569; font-size:12px;">아직 주문이 없습니다</span></div>
+                    </div>
                     <div class="grid" id="userGrid"></div>
                     <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
                     <button id="randomBtn" class="lucky-btn" onclick="randomMenuSlot()">🎲 결정 장애? 슬롯머신!</button>
@@ -312,10 +332,13 @@
                 const res = await fetch(GAS_URL + "?type=get");
                 state = await res.json();
                 renderUI();
-                if(isAdmin && state.status === "ORDERING") {
+                // [v13.6] WAITING/ORDERING 모두 관리자 대시보드 표시
+                if(isAdmin && (state.status === "ORDERING" || state.status === "WAITING")) {
                     renderAdminDashboard();
                     renderHistoryLogRoom();
                 }
+                // [v13.6] 메뉴 선택 화면에서 Top3 실시간 갱신
+                if(state.status === "ORDERING") renderTop3();
             } catch (e) {}
         }
 
@@ -374,7 +397,8 @@
 
             if(state.status === "WAITING") {
                 document.getElementById('waitingSection').classList.remove('hidden');
-                document.getElementById('adminDashboard').classList.add('hidden');
+                // [v13.6] 관리자는 WAITING 상태에서도 대시보드 유지 (비관리자만 숨김)
+                if(!isAdmin) document.getElementById('adminDashboard').classList.add('hidden');
 
             } else if(state.status === "VOTING") {
                 document.getElementById('votingSection').classList.remove('hidden');
@@ -452,6 +476,61 @@
                 }
                 setFormDisabled(!!isOrdered);
             }
+        }
+
+        // [v13.6] 불참 제출
+        function submitAbsent() {
+            if(!selected.user) return alert("먼저 이름을 선택해주세요!");
+            if(!confirm(`${selected.user}님 오늘 점심 불참으로 제출하시겠습니까?`)) return;
+            localStorage.setItem(todayKey, 'true');
+            setFormDisabled(true);
+            fetch(GAS_URL, {
+                method: "POST",
+                body: JSON.stringify({
+                    type: "MULTI_ORDER", userName: selected.user, restaurant: state.winner,
+                    mainMenu: "[불참]", mainPrice: -1, sides: []
+                })
+            }).then(updateState);
+        }
+
+        // [v13.6] 실시간 Top3 메뉴 위젯 렌더링
+        function renderTop3() {
+            const widget = document.getElementById('top3Body');
+            if(!widget || !state.orderData) return;
+
+            // 메인메뉴만 집계 (사이드/개인사이드/현장주문/불참 제외)
+            const counts = {};
+            state.orderData.forEach(o => {
+                if(o.name.includes('[사이드]')) return;
+                if(o.menu.includes('(개인사이드)')) return;
+                if(o.menu.startsWith('[현장주문]') || o.menu === '[불참]') return;
+                const clean = o.menu.replace(' (곱빼기)', '').trim();
+                counts[clean] = (counts[clean] || 0) + 1;
+            });
+
+            const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,3);
+            if(sorted.length === 0) {
+                widget.innerHTML = '<span style="color:#475569; font-size:12px;">아직 주문이 없습니다</span>';
+                return;
+            }
+
+            const maxCnt = sorted[0][1];
+            const medals = ['🥇','🥈','🥉'];
+            const colors = ['#00ff88','#60a5fa','#a78bfa'];
+
+            widget.innerHTML = sorted.map(([menu, cnt], i) => `
+                <div class="top3-row">
+                    <span class="top3-rank">${medals[i]}</span>
+                    <span class="top3-label">${menu}</span>
+                    <div class="top3-bar-wrap">
+                        <div class="top3-bar" style="width:${Math.round(cnt/maxCnt*100)}%; background:${colors[i]};"></div>
+                    </div>
+                    <span class="top3-count">${cnt}명</span>
+                </div>`).join('');
+
+            const now = new Date();
+            document.getElementById('top3UpdatedAt').innerText =
+                String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ' 기준';
         }
 
         // [v13.5] 현장주문 참석 여부 선택
@@ -665,8 +744,12 @@
                 } else {
                     // [현장주문] 표시
                     const isWalkInOrder = mainOrders.some(o => o.menu.startsWith('[현장주문]'));
+                    const isAbsent = mainOrders.some(o => o.menu === '[불참]');
                     let menuDisplay, subTotal;
-                    if(isWalkInOrder) {
+                    if(isAbsent) {
+                        menuDisplay = `<span style="color:#f43f5e;">🚫 불참</span>`;
+                        subTotal = 0;
+                    } else if(isWalkInOrder) {
                         const attending = mainOrders[0].menu.includes('참석');
                         menuDisplay = attending
                             ? `<span style="color:var(--primary); font-weight:bold;">✅ 참석 (현장주문)</span>`
@@ -1021,9 +1104,12 @@
             });
             state.employees.forEach(empName => {
                 const isExcluded = excludedUsers.has(empName);
-                const hasOrdered = userOrdersMap[empName] && userOrdersMap[empName].length > 0;
-                if (!isExcluded && !hasOrdered) unselectedUsers.push(empName);
-                if (!isExcluded && hasOrdered) {
+                const orders = userOrdersMap[empName] || [];
+                const hasOrdered = orders.length > 0;
+                // [v13.6] 불참자는 미선택으로 카운트하지 않고 히스토리에도 저장 안 함
+                const isAbsent = orders.some(o => o.menu === '[불참]');
+                if (!isExcluded && !hasOrdered && !isAbsent) unselectedUsers.push(empName);
+                if (!isExcluded && hasOrdered && !isAbsent) {
                     userOrdersMap[empName].forEach(o => { recordsToSave.push({ name: empName, menu: o.menu, price: o.price }); });
                 }
             });
