@@ -40,6 +40,38 @@
         .badge-visited { position: absolute; top: 5px; left: 5px; background: rgba(244,63,94,0.15); color: #f43f5e; border: 1px solid #f43f5e; font-size: 10px; font-weight: bold; padding: 2px 5px; border-radius: 6px; }
         .badge-freq { position: absolute; bottom: 5px; left: 5px; background: rgba(0,255,136,0.15); color: var(--primary); border: 1px solid var(--primary); font-size: 10px; font-weight: bold; padding: 2px 5px; border-radius: 6px; pointer-events:none; }
 
+        /* [v13.9] 참여 현황 프로그레스바 */
+        .progress-section { margin-bottom: 14px; }
+        .progress-label { display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; }
+        .progress-label-left { color:#94a3b8; }
+        .progress-label-right { color:var(--primary); font-weight:bold; }
+        .order-progress-bar { height:10px; background:#1e293b; border-radius:6px; overflow:hidden; }
+        .order-progress-fill { height:100%; background:var(--primary); border-radius:6px; transition:width 0.5s ease; }
+        .order-progress-fill.complete { background: linear-gradient(90deg, var(--primary), #60a5fa); animation: shimmer 1.5s infinite; }
+        @keyframes shimmer { 0%{opacity:1} 50%{opacity:0.7} 100%{opacity:1} }
+        .complete-banner { text-align:center; padding:10px; background:rgba(0,255,136,0.1); border:1px solid var(--primary); border-radius:12px; font-size:13px; font-weight:bold; color:var(--primary); margin-top:8px; }
+
+        /* [v13.9] 팀 현황판 */
+        .team-board { background:#0f172a; border:1px solid #334155; border-radius:16px; padding:14px; margin-bottom:14px; }
+        .team-board-title { font-size:12px; color:#94a3b8; font-weight:bold; margin-bottom:10px; }
+        .team-board-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .team-member-card { background:#1e293b; border-radius:10px; padding:8px 10px; border:1px solid #334155; }
+        .team-member-card.done { border-color: rgba(0,255,136,0.4); background:rgba(0,255,136,0.05); }
+        .team-member-card.absent { border-color: rgba(244,63,94,0.3); background:rgba(244,63,94,0.05); }
+        .team-member-name { font-size:12px; color:#94a3b8; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .team-member-menu { font-size:11px; font-weight:bold; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .team-member-menu.pending { color:#475569; font-style:italic; }
+        .team-member-menu.absent-label { color:#f43f5e; }
+
+        /* [v13.9] 내 주문 확인 카드 */
+        .my-order-card { background:rgba(0,255,136,0.06); border:1px solid rgba(0,255,136,0.3); border-radius:16px; padding:16px; margin-bottom:14px; }
+        .my-order-title { font-size:12px; color:var(--primary); font-weight:bold; margin-bottom:10px; }
+        .my-order-row { display:flex; justify-content:space-between; font-size:13px; padding:5px 0; border-bottom:1px solid rgba(0,255,136,0.1); }
+        .my-order-row:last-of-type { border-bottom:none; }
+        .my-order-label { color:#94a3b8; }
+        .my-order-value { color:white; font-weight:bold; text-align:right; max-width:60%; }
+        .my-order-total { margin-top:8px; font-size:14px; font-weight:bold; color:var(--primary); text-align:right; }
+
         /* [v13.6] 불참 버튼 */
         .btn-absent { width:100%; padding:12px; background:rgba(244,63,94,0.12); color:#f43f5e; border:1px solid #f43f5e; border-radius:12px; font-size:14px; font-weight:bold; cursor:pointer; margin-bottom:12px; transition:0.15s; }
         .btn-absent:hover { background:#f43f5e; color:white; }
@@ -201,11 +233,6 @@
                 <div id="formContainer">
                     <!-- [v13.6] 불참 버튼 -->
                     <button class="btn-absent" onclick="submitAbsent()">🚫 오늘 점심 불참</button>
-                    <!-- [v13.6] 실시간 Top3 위젯 -->
-                    <div class="top3-widget" id="top3Widget">
-                        <div class="top3-title">🔥 실시간 메뉴 현황 <span id="top3UpdatedAt" style="color:#475569; font-weight:normal;"></span></div>
-                        <div id="top3Body"><span style="color:#475569; font-size:12px;">아직 주문이 없습니다</span></div>
-                    </div>
                     <div class="grid" id="userGrid"></div>
                     <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
                     <button id="randomBtn" class="lucky-btn" onclick="randomMenuSlot()">🎲 결정 장애? 슬롯머신!</button>
@@ -242,11 +269,47 @@
                     <button class="btn-main" id="submitBtn" onclick="submitOrder()" style="margin-top:20px;">주문 제출하기</button>
                 </div>
                 <div id="orderedMsg" class="hidden">
-                    <div style="background:rgba(0,255,136,0.1); padding:15px; border-radius:12px; margin-bottom:15px;">
-                        <b style="color:var(--primary)">주문 완료!</b><br>
-                        <span style="font-size:13px; color:#94a3b8;">메뉴 변경 시 구수완 사원에게 메신저 부탁드립니다.</span>
+                    <!-- [v13.9] 내 주문 확인 카드 -->
+                    <div class="my-order-card">
+                        <div class="my-order-title">✅ 내 주문 확인</div>
+                        <div id="myOrderDetail"></div>
+                        <div id="myOrderTotal" class="my-order-total"></div>
                     </div>
-                    <button onclick="reOrder()" style="color:#94a3b8; background:none; border:none; text-decoration:underline; cursor:pointer;">메뉴 다시 고르기</button>
+                    <div style="text-align:center; margin-bottom:14px;">
+                        <span style="font-size:12px; color:#64748b;">메뉴 변경 시 구수완 사원에게 메신저 부탁드립니다.</span>
+                    </div>
+                    <button onclick="reOrder()" style="color:#94a3b8; background:none; border:none; text-decoration:underline; cursor:pointer; width:100%; margin-bottom:16px;">메뉴 다시 고르기</button>
+                </div>
+
+                <!-- [v13.9] 항상 표시: 참여 현황 + 팀 현황판 + Top3 위젯 -->
+                <hr style="border:0; border-top:1px solid #334155; margin:4px 0 16px 0;">
+
+                <!-- 참여 현황 프로그레스바 -->
+                <div class="progress-section">
+                    <div class="progress-label">
+                        <span class="progress-label-left" id="progressLabel">주문 현황</span>
+                        <span class="progress-label-right" id="progressCount"></span>
+                    </div>
+                    <div class="order-progress-bar">
+                        <div class="order-progress-fill" id="orderProgressFill" style="width:0%"></div>
+                    </div>
+                    <div id="completeBanner" class="complete-banner hidden">🎉 전원 주문 완료!</div>
+                </div>
+
+                <!-- 팀 현황판 -->
+                <div class="team-board">
+                    <div class="team-board-title">👥 팀 주문 현황</div>
+                    <div class="team-board-grid" id="teamBoardGrid"></div>
+                </div>
+
+                <!-- Top3 위젯 -->
+                <div class="top3-widget" id="top3Widget">
+                    <div class="top3-title">🔥 실시간 메뉴 현황 <span id="top3UpdatedAt" style="color:#475569; font-weight:normal;"></span></div>
+                    <div id="top3Body"><span style="color:#475569; font-size:12px;">아직 주문이 없습니다</span></div>
+                </div>
+                <div class="top3-widget" id="top3HistWidget" style="border-color:#334155; margin-top:10px;">
+                    <div class="top3-title">📊 이 식당 누적 인기 메뉴</div>
+                    <div id="top3HistBody"><span style="color:#475569; font-size:12px;">히스토리 데이터 없음</span></div>
                 </div>
             </div>
         </div>
@@ -309,7 +372,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycby2P8uA9oc8IitSzn_5GME5okkTn7N5zz4RePOAkVeiP7Sp7vrykuXr7RXGoRdA0W3KkQ/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwjdQHaXGJohlv1kRObddcQcpn-q1MRY5umLzilNnQXpwPFp8fYovgs7OJOzqyOnbPOBg/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -335,10 +398,18 @@
                 // [v13.6] WAITING/ORDERING 모두 관리자 대시보드 표시
                 if(isAdmin && (state.status === "ORDERING" || state.status === "WAITING")) {
                     renderAdminDashboard();
-                    renderHistoryLogRoom();
+                    // [v13.7] historyData가 있을 때만 히스토리/통계 렌더
+                    if(state.historyData && state.historyData.length > 0) {
+                        renderHistoryLogRoom();
+                    }
                 }
                 // [v13.6] 메뉴 선택 화면에서 Top3 실시간 갱신
-                if(state.status === "ORDERING") renderTop3();
+                if(state.status === "ORDERING") {
+                    renderTop3();
+                    renderTop3Hist();
+                    renderOrderProgress(); // [v13.9] 참여 현황
+                    renderTeamBoard();     // [v13.9] 팀 현황판
+                }
             } catch (e) {}
         }
 
@@ -483,7 +554,10 @@
             if(!selected.user) return alert("먼저 이름을 선택해주세요!");
             if(!confirm(`${selected.user}님 오늘 점심 불참으로 제출하시겠습니까?`)) return;
             localStorage.setItem(todayKey, 'true');
+            const myOrderData = { user: selected.user, restaurant: state.winner, isAbsent: true };
+            localStorage.setItem(todayKey + '_order', JSON.stringify(myOrderData));
             setFormDisabled(true);
+            renderMyOrderCard(myOrderData);
             fetch(GAS_URL, {
                 method: "POST",
                 body: JSON.stringify({
@@ -531,6 +605,149 @@
             const now = new Date();
             document.getElementById('top3UpdatedAt').innerText =
                 String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ' 기준';
+        }
+
+        // [v13.7] 누적 인기 메뉴 Top3 (히스토리 기반)
+        function renderTop3Hist() {
+            const widget = document.getElementById('top3HistBody');
+            if(!widget) return;
+            if(!state.historyData || !state.historyData.length || !state.winner) {
+                widget.innerHTML = '<span style="color:#475569; font-size:12px;">히스토리 데이터 없음</span>';
+                return;
+            }
+            // 해당 식당의 메인 메뉴만 집계
+            const counts = {};
+            state.historyData.forEach(h => {
+                if(h.restaurant !== state.winner) return;
+                if(h.name === '[사이드]') return;
+                if(h.menu.includes('(개인사이드)') || h.menu.includes('(사이드)')) return;
+                if(h.menu.startsWith('[현장주문]') || h.menu === '[불참]') return;
+                const clean = h.menu.replace(' (곱빼기)', '').trim();
+                counts[clean] = (counts[clean] || 0) + 1;
+            });
+            const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0,3);
+            if(sorted.length === 0) {
+                widget.innerHTML = '<span style="color:#475569; font-size:12px;">이 식당의 기록 없음</span>';
+                return;
+            }
+            const maxCnt = sorted[0][1];
+            const medals = ['🥇','🥈','🥉'];
+            const colors = ['#fba51a','#94a3b8','#cd7c54'];
+            widget.innerHTML = sorted.map(([menu, cnt], i) => `
+                <div class="top3-row">
+                    <span class="top3-rank">${medals[i]}</span>
+                    <span class="top3-label">${menu}</span>
+                    <div class="top3-bar-wrap">
+                        <div class="top3-bar" style="width:${Math.round(cnt/maxCnt*100)}%; background:${colors[i]};"></div>
+                    </div>
+                    <span class="top3-count">${cnt}회</span>
+                </div>`).join('');
+        }
+
+        // [v13.9] 내 주문 확인 카드 렌더링
+        function renderMyOrderCard(data) {
+            const detail = document.getElementById('myOrderDetail');
+            const total = document.getElementById('myOrderTotal');
+            if(!detail) return;
+            if(data.isAbsent) {
+                detail.innerHTML = `<div class="my-order-row"><span class="my-order-label">🚫 오늘 불참</span><span class="my-order-value" style="color:#f43f5e;">불참 처리됨</span></div>`;
+                total.innerHTML = '';
+                return;
+            }
+            if(data.isWalkIn) {
+                const label = data.attend ? '✅ 참석' : '❌ 불참';
+                detail.innerHTML = `
+                    <div class="my-order-row"><span class="my-order-label">👤 이름</span><span class="my-order-value">${data.user}</span></div>
+                    <div class="my-order-row"><span class="my-order-label">🏪 현장주문</span><span class="my-order-value">${label}</span></div>`;
+                total.innerHTML = '현장 결제';
+                return;
+            }
+            let rows = `
+                <div class="my-order-row"><span class="my-order-label">👤 이름</span><span class="my-order-value">${data.user}</span></div>
+                <div class="my-order-row"><span class="my-order-label">🍽 메뉴</span><span class="my-order-value">${data.menu}</span></div>
+                <div class="my-order-row"><span class="my-order-label">💰 메인</span><span class="my-order-value">${Number(data.mainPrice).toLocaleString()}원</span></div>`;
+            let totalAmt = data.mainPrice;
+            (data.sides || []).forEach(s => {
+                totalAmt += Number(s.price);
+                rows += `<div class="my-order-row"><span class="my-order-label">🥤 ${s.name.replace('(개인사이드)','').trim()}</span><span class="my-order-value">+${Number(s.price).toLocaleString()}원</span></div>`;
+            });
+            detail.innerHTML = rows;
+            total.innerHTML = `합계 ${totalAmt.toLocaleString()}원`;
+        }
+
+        // [v13.9] 참여 현황 프로그레스바
+        function renderOrderProgress() {
+            const fillEl = document.getElementById('orderProgressFill');
+            const countEl = document.getElementById('progressCount');
+            const labelEl = document.getElementById('progressLabel');
+            const bannerEl = document.getElementById('completeBanner');
+            if(!fillEl || !state.employees) return;
+
+            const total = state.employees.length;
+            // 주문 완료 = 메인주문 있거나 불참/현장주문 제출한 사람
+            const submittedSet = new Set();
+            (state.orderData || []).forEach(o => {
+                if(!o.name.includes('[사이드]')) submittedSet.add(o.name);
+            });
+            const done = [...submittedSet].filter(n => state.employees.includes(n)).length;
+            const pct = total > 0 ? Math.round(done / total * 100) : 0;
+
+            fillEl.style.width = pct + '%';
+            fillEl.classList.toggle('complete', done === total);
+            countEl.innerText = `${done} / ${total}명`;
+            labelEl.innerText = pct < 100 ? `주문 현황 (${pct}%)` : '주문 현황';
+
+            if(done === total && total > 0) {
+                bannerEl.classList.remove('hidden');
+            } else {
+                bannerEl.classList.add('hidden');
+            }
+        }
+
+        // [v13.9] 팀 현황판
+        function renderTeamBoard() {
+            const grid = document.getElementById('teamBoardGrid');
+            if(!grid || !state.employees) return;
+
+            // 이름별 주문 맵
+            const orderMap = {};
+            (state.orderData || []).forEach(o => {
+                if(o.name.includes('[사이드]')) return;
+                if(!orderMap[o.name]) orderMap[o.name] = [];
+                orderMap[o.name].push(o);
+            });
+
+            grid.innerHTML = state.employees.map(emp => {
+                const orders = orderMap[emp] || [];
+                const isAbsent = orders.some(o => o.menu === '[불참]');
+                const isWalkIn = orders.some(o => o.menu.startsWith('[현장주문]'));
+                const hasDone = orders.length > 0;
+
+                let cardClass = 'team-member-card';
+                let menuHtml = '';
+
+                if(isAbsent) {
+                    cardClass += ' absent';
+                    menuHtml = `<div class="team-member-menu absent-label">🚫 불참</div>`;
+                } else if(isWalkIn) {
+                    cardClass += ' done';
+                    const attending = orders[0].menu.includes('참석');
+                    menuHtml = `<div class="team-member-menu">${attending ? '✅ 현장주문' : '❌ 불참'}</div>`;
+                } else if(hasDone) {
+                    cardClass += ' done';
+                    // 메인 메뉴만 표시 (개인사이드 제외)
+                    const mainMenu = orders.find(o => !o.menu.includes('(개인사이드)'));
+                    const menuText = mainMenu ? mainMenu.menu.replace(' (곱빼기)','').replace(/\(곱빼기 가능:.*\)/g,'').trim() : '주문완료';
+                    menuHtml = `<div class="team-member-menu">${menuText}</div>`;
+                } else {
+                    menuHtml = `<div class="team-member-menu pending">대기 중...</div>`;
+                }
+
+                return `<div class="${cardClass}">
+                    <div class="team-member-name">${emp}</div>
+                    ${menuHtml}
+                </div>`;
+            }).join('');
         }
 
         // [v13.5] 현장주문 참석 여부 선택
@@ -698,6 +915,21 @@
         function renderAdminDashboard() {
             document.getElementById('adminDashboard').classList.remove('hidden');
 
+            // [v13.7] WAITING 상태: 정산탭 안내 표시 후 나머지는 그냥 return (히스토리/통계는 별도 호출)
+            if(state.status === "WAITING") {
+                document.getElementById('sideMenuArea').classList.add('hidden');
+                document.getElementById('btnSaveHistory').classList.add('hidden');
+                document.getElementById('adminOrderList').innerHTML =
+                    `<div style="text-align:center; padding:24px 0; color:#475569;">
+                        <div style="font-size:32px; margin-bottom:8px;">😴</div>
+                        <div style="font-size:14px; font-weight:bold; color:#64748b;">진행 중인 투표가 없습니다</div>
+                        <div style="font-size:12px; margin-top:4px; color:#475569;">투표를 시작하면 실시간 현황이 표시됩니다.</div>
+                    </div>`;
+                document.getElementById('adminSummary').innerHTML = '';
+                return;
+            }
+            document.getElementById('btnSaveHistory').classList.remove('hidden');
+
             const sideArea = document.getElementById('sideMenuArea');
             if(state.sideMenus && state.sideMenus.length > 0) {
                 sideArea.classList.remove('hidden');
@@ -745,9 +977,11 @@
                     // [현장주문] 표시
                     const isWalkInOrder = mainOrders.some(o => o.menu.startsWith('[현장주문]'));
                     const isAbsent = mainOrders.some(o => o.menu === '[불참]');
+                    // [v13.7] 불참자 자동 제외 처리
+                    if(isAbsent && !excludedUsers.has(empName)) excludedUsers.add(empName);
                     let menuDisplay, subTotal;
                     if(isAbsent) {
-                        menuDisplay = `<span style="color:#f43f5e;">🚫 불참</span>`;
+                        menuDisplay = `<span style="color:#f43f5e;">🚫 불참 (자동제외)</span>`;
                         subTotal = 0;
                     } else if(isWalkInOrder) {
                         const attending = mainOrders[0].menu.includes('참석');
@@ -969,14 +1203,13 @@
             // 누적 지출: 메인 메뉴 가격만 합산
             const totalSpend = data.reduce((s, h) => s + (Number(h.price) || 0), 0);
 
-            // 식당별 방문 횟수 (식사 단위 중복 제거)
-            const resMealSet = {};
+            // [v13.7] 식당 방문 횟수: 날짜 기준 1회 (같은 날 여러 명이 가도 그날은 1회)
+            const resDateSet = {};
             data.forEach(h => {
-                const key = h.date + '_' + h.name;
-                if(!resMealSet[h.restaurant]) resMealSet[h.restaurant] = new Set();
-                resMealSet[h.restaurant].add(key);
+                if(!resDateSet[h.restaurant]) resDateSet[h.restaurant] = new Set();
+                resDateSet[h.restaurant].add(h.date); // 날짜만으로 중복 제거
             });
-            const resCounts = Object.fromEntries(Object.entries(resMealSet).map(([r, s]) => [r, s.size]));
+            const resCounts = Object.fromEntries(Object.entries(resDateSet).map(([r, s]) => [r, s.size]));
             const resSorted = Object.entries(resCounts).sort((a,b) => b[1]-a[1]);
 
             // 메뉴별 주문 횟수 (곱빼기 여부 무시하고 같은 메뉴로 합산)
@@ -1284,7 +1517,21 @@
             if(!pendingOrder) return;
             document.getElementById('orderPopup').classList.remove('show');
             localStorage.setItem(todayKey, 'true');
+
+            // [v13.9] 내 주문 내역을 localStorage에 저장해서 새로고침 후에도 유지
+            const myOrderData = {
+                user: selected.user,
+                restaurant: state.winner,
+                isWalkIn: pendingOrder.isWalkIn || false,
+                attend: pendingOrder.attend,
+                menu: pendingOrder.isWalkIn ? null : selected.menu,
+                mainPrice: pendingOrder.isWalkIn ? 0 : pendingOrder.finalMainPrice,
+                sides: pendingOrder.isWalkIn ? [] : (pendingOrder.checkedSides || [])
+            };
+            localStorage.setItem(todayKey + '_order', JSON.stringify(myOrderData));
+
             setFormDisabled(true);
+            renderMyOrderCard(myOrderData);
 
             if(pendingOrder.isWalkIn) {
                 // [v13.5] 현장주문: 참석=가격0, 불참=가격-1 로 저장 (식별용)
@@ -1309,10 +1556,20 @@
             pendingOrder = null;
         }
 
-        function reOrder() { localStorage.removeItem(todayKey); setFormDisabled(false); updateState(); }
+        function reOrder() {
+            localStorage.removeItem(todayKey);
+            localStorage.removeItem(todayKey + '_order');
+            setFormDisabled(false);
+            updateState();
+        }
         function setFormDisabled(disabled) {
             document.getElementById('formContainer').classList.toggle('hidden', disabled);
             document.getElementById('orderedMsg').classList.toggle('hidden', !disabled);
+            // [v13.9] 제출 완료 상태 진입 시 저장된 주문 카드 복원
+            if(disabled) {
+                const saved = localStorage.getItem(todayKey + '_order');
+                if(saved) try { renderMyOrderCard(JSON.parse(saved)); } catch(e){}
+            }
         }
 
         // 💡 [v13.0] 초기 폴링은 5초, 타이머 종료 임박 시 자동으로 1초로 단축됨
