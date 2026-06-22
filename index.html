@@ -40,6 +40,44 @@
         .badge-visited { position: absolute; top: 5px; left: 5px; background: rgba(244,63,94,0.15); color: #f43f5e; border: 1px solid #f43f5e; font-size: 10px; font-weight: bold; padding: 2px 5px; border-radius: 6px; }
         .badge-freq { position: absolute; bottom: 5px; left: 5px; background: rgba(0,255,136,0.15); color: var(--primary); border: 1px solid var(--primary); font-size: 10px; font-weight: bold; padding: 2px 5px; border-radius: 6px; pointer-events:none; }
 
+        /* [v13.11] 식당 미리보기 바텀시트 */
+        .bottomsheet-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+            z-index: 2000; backdrop-filter: blur(3px);
+            opacity: 0; transition: opacity 0.25s;
+            pointer-events: none;
+        }
+        .bottomsheet-overlay.show { opacity: 1; pointer-events: auto; }
+        .bottomsheet {
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%);
+            width: 100%; max-width: 480px;
+            background: var(--card); border-radius: 24px 24px 0 0;
+            border-top: 2px solid #475569;
+            padding: 0 0 24px 0;
+            transition: transform 0.3s cubic-bezier(.32,.72,0,1);
+            max-height: 80vh; overflow-y: auto;
+        }
+        .bottomsheet-overlay.show .bottomsheet { transform: translateX(-50%) translateY(0); }
+        .bottomsheet-handle { width: 40px; height: 4px; background: #475569; border-radius: 2px; margin: 14px auto 0; }
+        .bottomsheet-header { padding: 16px 20px 12px; border-bottom: 1px solid #334155; }
+        .bottomsheet-resname { font-size: 20px; font-weight: 800; color: white; }
+        .bottomsheet-meta { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+        .bottomsheet-meta-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8; }
+        .bottomsheet-menu-section { padding: 14px 20px 0; }
+        .bottomsheet-menu-title { font-size: 12px; color: #64748b; font-weight: bold; margin-bottom: 10px; letter-spacing: 0.05em; }
+        .bottomsheet-menu-item { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #1e293b; font-size: 13px; }
+        .bottomsheet-menu-item:last-child { border-bottom: none; }
+        .bottomsheet-menu-name { color: #e2e8f0; }
+        .bottomsheet-menu-price { color: var(--primary); font-weight: bold; white-space: nowrap; }
+        .bottomsheet-walkin-notice { text-align: center; padding: 20px; color: #fba51a; font-size: 13px; }
+        .bottomsheet-vote-btn {
+            margin: 16px 20px 0;
+            width: calc(100% - 40px);
+            padding: 16px; background: var(--primary); color: #0f172a;
+            border: none; border-radius: 16px; font-size: 16px; font-weight: bold; cursor: pointer;
+        }
+        .bottomsheet-vote-btn.already-voted { background: #334155; color: #94a3b8; }
+
         /* [v13.9] 참여 현황 프로그레스바 */
         .progress-section { margin-bottom: 14px; }
         .progress-label { display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; }
@@ -199,6 +237,29 @@
         </div>
     </div>
 
+    <!-- [v13.11] 식당 미리보기 바텀시트 -->
+    <div class="bottomsheet-overlay" id="resBottomSheet" onclick="closeResBottomSheet(event)">
+        <div class="bottomsheet" id="resBottomSheetPanel">
+            <div class="bottomsheet-handle"></div>
+            <div class="bottomsheet-header">
+                <div class="bottomsheet-resname" id="bsResName"></div>
+                <div class="bottomsheet-meta">
+                    <div class="bottomsheet-meta-row" id="bsAddress" style="display:none;">
+                        <span>📍</span><span id="bsAddressText"></span>
+                    </div>
+                    <div class="bottomsheet-meta-row" id="bsPhone" style="display:none;">
+                        <span>📞</span><span id="bsPhoneText"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="bottomsheet-menu-section">
+                <div class="bottomsheet-menu-title">MENU</div>
+                <div id="bsMenuList"></div>
+            </div>
+            <button class="bottomsheet-vote-btn" id="bsVoteBtn" onclick="confirmResVote()"></button>
+        </div>
+    </div>
+
     <div class="container">
         <div id="loading">⚡ 데이터 동기화 중...</div>
 
@@ -230,6 +291,7 @@
         <div id="orderingSection" class="hidden">
             <div class="card">
                 <h2 id="winnerTitle" style="color:var(--primary)">🏆 오늘의 식당</h2>
+                <div id="winnerAddress" class="hidden" style="font-size:12px; color:#94a3b8; margin-top:-8px; margin-bottom:12px;">📍 <span id="winnerAddressText"></span></div>
                 <div id="formContainer">
                     <!-- [v13.6] 불참 버튼 -->
                     <button class="btn-absent" onclick="submitAbsent()">🚫 오늘 점심 불참</button>
@@ -372,7 +434,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwjdQHaXGJohlv1kRObddcQcpn-q1MRY5umLzilNnQXpwPFp8fYovgs7OJOzqyOnbPOBg/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwH7Fmd-5yvJwbWk8Z9hPUEZ3Hwl1Mwqm_TY9IlqnmTawUPhCGmJ-GNy9fD0Trtzzg59w/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -394,23 +456,109 @@
             try {
                 const res = await fetch(GAS_URL + "?type=get");
                 state = await res.json();
+
+                // [v13.10] 서버의 excludedNames로 excludedUsers 동기화
+                // 단, 관리자가 방금 체크한 불참(isAbsent) 자동 제외는 별도 처리되므로 덮어쓰지 않음
+                if(state.excludedNames) {
+                    // 서버 목록을 기준으로 동기화 (사이드 제외키 side_N은 유지)
+                    const sideKeys = [...excludedUsers].filter(k => k.startsWith('side_'));
+                    excludedUsers = new Set([...state.excludedNames, ...sideKeys]);
+                }
+
                 renderUI();
-                // [v13.6] WAITING/ORDERING 모두 관리자 대시보드 표시
                 if(isAdmin && (state.status === "ORDERING" || state.status === "WAITING")) {
                     renderAdminDashboard();
-                    // [v13.7] historyData가 있을 때만 히스토리/통계 렌더
                     if(state.historyData && state.historyData.length > 0) {
                         renderHistoryLogRoom();
                     }
                 }
-                // [v13.6] 메뉴 선택 화면에서 Top3 실시간 갱신
                 if(state.status === "ORDERING") {
                     renderTop3();
                     renderTop3Hist();
-                    renderOrderProgress(); // [v13.9] 참여 현황
-                    renderTeamBoard();     // [v13.9] 팀 현황판
+                    renderOrderProgress();
+                    renderTeamBoard();
                 }
             } catch (e) {}
+        }
+
+        // [v13.11] 식당 미리보기 바텀시트 렌더
+        function renderResGrid() {
+            const container = document.getElementById('resGrid');
+            container.innerHTML = '';
+            (state.restaurants || []).forEach(resName => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                const alreadyVoted = selected.res === resName;
+                if(alreadyVoted) div.classList.add('active');
+                div.innerText = resName;
+                div.onclick = () => openResBottomSheet(resName);
+                container.appendChild(div);
+            });
+        }
+
+        function openResBottomSheet(resName) {
+            const details = state.restaurantDetails && state.restaurantDetails[resName];
+
+            document.getElementById('bsResName').innerText = resName;
+
+            // 주소
+            if(details && details.address) {
+                document.getElementById('bsAddressText').innerText = details.address;
+                document.getElementById('bsAddress').style.display = 'flex';
+            } else {
+                document.getElementById('bsAddress').style.display = 'none';
+            }
+            // 전화번호
+            if(details && details.phone) {
+                document.getElementById('bsPhoneText').innerText = details.phone;
+                document.getElementById('bsPhone').style.display = 'flex';
+            } else {
+                document.getElementById('bsPhone').style.display = 'none';
+            }
+            // 메뉴 목록
+            const menuList = document.getElementById('bsMenuList');
+            if(!details || details.isWalkIn || !details.menus || details.menus.length === 0) {
+                menuList.innerHTML = `<div class="bottomsheet-walkin-notice">🏪 현장에서 직접 주문하는 식당입니다</div>`;
+            } else {
+                menuList.innerHTML = details.menus.map(m => `
+                    <div class="bottomsheet-menu-item">
+                        <span class="bottomsheet-menu-name">${String(m.name).replace(/\(곱빼기 가능:.*\)/g,'').trim()}</span>
+                        <span class="bottomsheet-menu-price">${Number(m.price).toLocaleString()}원</span>
+                    </div>`).join('');
+            }
+            // 투표 버튼 상태
+            const voteBtn = document.getElementById('bsVoteBtn');
+            const alreadyVoted = selected.res === resName;
+            if(alreadyVoted) {
+                voteBtn.textContent = '✅ 이미 투표한 식당입니다';
+                voteBtn.className = 'bottomsheet-vote-btn already-voted';
+            } else {
+                voteBtn.textContent = `✅ ${resName} 투표하기`;
+                voteBtn.className = 'bottomsheet-vote-btn';
+            }
+            voteBtn.dataset.resname = resName;
+            document.getElementById('resBottomSheet').classList.add('show');
+        }
+
+        function closeResBottomSheet(e) {
+            if(e && e.target !== document.getElementById('resBottomSheet')) return;
+            document.getElementById('resBottomSheet').classList.remove('show');
+        }
+
+        function confirmResVote() {
+            const resName = document.getElementById('bsVoteBtn').dataset.resname;
+            if(selected.res === resName) {
+                document.getElementById('resBottomSheet').classList.remove('show');
+                return;
+            }
+            selected.res = resName;
+            sendVote();
+            // 투표한 식당 active 표시 갱신
+            document.querySelectorAll('#resGrid .item').forEach(el => {
+                el.classList.toggle('active', el.innerText.trim() === resName);
+            });
+            document.getElementById('resBottomSheet').classList.remove('show');
+            openVotePopup(resName);
         }
 
         // 💡 [v12.0] 투표 팝업 열기/닫기
@@ -479,13 +627,8 @@
                 if(isAdmin) document.getElementById('adminVoteControls').classList.remove('hidden');
 
                 if(!document.getElementById('resGrid').children.length) {
-                    renderGrid('resGrid', state.restaurants, (v) => {
-                        selected.res = v;
-                        sendVote();
-                        openVotePopup(v);
-                    });
+                    renderResGrid(); // [v13.11] 바텀시트 방식으로 교체
                 }
-                // [v13.3] 최근 방문 식당 배지 표시
                 renderVoteBadges();
                 startLocalTimer(state.endTime);
                 const percent = (state.voteCount / state.totalCount) * 100;
@@ -497,6 +640,13 @@
                 setNormalPolling();
                 document.getElementById('orderingSection').classList.remove('hidden');
                 document.getElementById('winnerTitle').innerText = `🏆 ${state.winner}`;
+                // [v13.11] 선정 식당 주소 표시
+                if(state.address) {
+                    document.getElementById('winnerAddressText').innerText = state.address;
+                    document.getElementById('winnerAddress').classList.remove('hidden');
+                } else {
+                    document.getElementById('winnerAddress').classList.add('hidden');
+                }
                 
                 // 💡 [v13.1] winner가 바뀌면(재투표/초기화 후) 그리드 강제 재렌더
                 const currentWinner = document.getElementById('userGrid').dataset.winner;
@@ -684,10 +834,13 @@
             if(!fillEl || !state.employees) return;
 
             const total = state.employees.length;
-            // 주문 완료 = 메인주문 있거나 불참/현장주문 제출한 사람
             const submittedSet = new Set();
             (state.orderData || []).forEach(o => {
                 if(!o.name.includes('[사이드]')) submittedSet.add(o.name);
+            });
+            // [v13.10] 제외된 인원도 완료로 카운트 (참여 안 하는 인원이므로)
+            state.employees.forEach(emp => {
+                if(excludedUsers.has(emp)) submittedSet.add(emp);
             });
             const done = [...submittedSet].filter(n => state.employees.includes(n)).length;
             const pct = total > 0 ? Math.round(done / total * 100) : 0;
@@ -709,7 +862,6 @@
             const grid = document.getElementById('teamBoardGrid');
             if(!grid || !state.employees) return;
 
-            // 이름별 주문 맵
             const orderMap = {};
             (state.orderData || []).forEach(o => {
                 if(o.name.includes('[사이드]')) return;
@@ -719,6 +871,7 @@
 
             grid.innerHTML = state.employees.map(emp => {
                 const orders = orderMap[emp] || [];
+                const isExcluded = excludedUsers.has(emp); // [v13.10] 제외 여부
                 const isAbsent = orders.some(o => o.menu === '[불참]');
                 const isWalkIn = orders.some(o => o.menu.startsWith('[현장주문]'));
                 const hasDone = orders.length > 0;
@@ -726,7 +879,11 @@
                 let cardClass = 'team-member-card';
                 let menuHtml = '';
 
-                if(isAbsent) {
+                // [v13.10] 제외된 경우 최우선으로 표시 (주문 여부 무관)
+                if(isExcluded) {
+                    cardClass += ' absent';
+                    menuHtml = `<div class="team-member-menu absent-label">⛔ 제외</div>`;
+                } else if(isAbsent) {
                     cardClass += ' absent';
                     menuHtml = `<div class="team-member-menu absent-label">🚫 불참</div>`;
                 } else if(isWalkIn) {
@@ -735,7 +892,6 @@
                     menuHtml = `<div class="team-member-menu">${attending ? '✅ 현장주문' : '❌ 불참'}</div>`;
                 } else if(hasDone) {
                     cardClass += ' done';
-                    // 메인 메뉴만 표시 (개인사이드 제외)
                     const mainMenu = orders.find(o => !o.menu.includes('(개인사이드)'));
                     const menuText = mainMenu ? mainMenu.menu.replace(' (곱빼기)','').replace(/\(곱빼기 가능:.*\)/g,'').trim() : '주문완료';
                     menuHtml = `<div class="team-member-menu">${menuText}</div>`;
@@ -1365,10 +1521,20 @@
             });
         }
 
-        function toggleExclude(key) {
-            if (excludedUsers.has(key)) excludedUsers.delete(key);
-            else excludedUsers.add(key);
+        async function toggleExclude(key) {
+            const isNowExcluded = !excludedUsers.has(key);
+            if (isNowExcluded) excludedUsers.add(key);
+            else excludedUsers.delete(key);
+
+            // [v13.10] 직원 이름 키만 서버에 저장 (side_N 키는 로컬 only)
+            if(!key.startsWith('side_')) {
+                await fetch(GAS_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ type: "SET_EXCLUDE", name: key, excluded: isNowExcluded })
+                });
+            }
             renderAdminDashboard();
+            renderTeamBoard(); // [v13.10] 팀 현황판도 즉시 갱신
         }
 
         function renderGrid(containerId, data, callback, isMenu = false) {
