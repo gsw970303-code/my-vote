@@ -626,9 +626,8 @@
                 // 관리자 연장 버튼 표시
                 if(isAdmin) document.getElementById('adminVoteControls').classList.remove('hidden');
 
-                if(!document.getElementById('resGrid').children.length) {
-                    renderResGrid(); // [v13.11] 바텀시트 방식으로 교체
-                }
+                // [v13.12] 매 폴링마다 재렌더 (타이머 종료 후 상태 전환 감지)
+                renderResGrid();
                 renderVoteBadges();
                 startLocalTimer(state.endTime);
                 const percent = (state.voteCount / state.totalCount) * 100;
@@ -1587,7 +1586,8 @@
                 const timerEl = document.getElementById('voteTimer');
                 if(diff <= 0) {
                     clearInterval(timerInterval);
-                    // 💡 [v13.0] 타이머 종료 순간 즉시 1초 폴링으로 전환 → 화면 전환 빠르게
+                    // [v13.12] 타이머 종료 순간 즉시 updateState 한 번 호출 후 빠른 폴링 전환
+                    updateState();
                     setFastPolling();
                     return;
                 }
