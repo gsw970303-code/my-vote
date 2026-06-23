@@ -449,6 +449,7 @@
         let excludedUsers = new Set(); 
         let timerInterval;
         let pollingInterval;   // 💡 [v13.0] 가변 폴링 간격 관리
+        let currentEndTime = 0; // [v13.12] 현재 타이머의 endTime 추적 (중복 재시작 방지)
         let sideQtyMap = {};
         let pendingOrder = null; // 💡 [v13.0] 확인 팝업 대기 중인 주문 데이터
 
@@ -579,7 +580,7 @@
                 const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_EXTEND" }) });
                 const data = await res.json();
                 if(data.newEndTime) {
-                    // 로컬 타이머 즉시 갱신
+                    currentEndTime = 0; // [v13.12] 강제 재시작
                     startLocalTimer(data.newEndTime);
                     alert("✅ 투표 시간이 30초 연장되었습니다!");
                 }
@@ -1580,6 +1581,9 @@
         }
 
         function startLocalTimer(endTime) {
+            // [v13.12] 같은 endTime으로 이미 돌고 있으면 재시작 안 함
+            if(timerInterval && currentEndTime === endTime) return;
+            currentEndTime = endTime;
             if(timerInterval) clearInterval(timerInterval);
             timerInterval = setInterval(() => {
                 const diff = endTime - new Date().getTime();
