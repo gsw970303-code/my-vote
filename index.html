@@ -40,6 +40,59 @@
         .badge-visited { position: absolute; top: 5px; left: 5px; background: rgba(244,63,94,0.15); color: #f43f5e; border: 1px solid #f43f5e; font-size: 10px; font-weight: bold; padding: 2px 5px; border-radius: 6px; }
         .badge-freq { position: absolute; bottom: 5px; left: 5px; background: rgba(0,255,136,0.15); color: var(--primary); border: 1px solid var(--primary); font-size: 10px; font-weight: bold; padding: 2px 5px; border-radius: 6px; pointer-events:none; }
 
+        /* [v13.14] 투표 결과 발표 오버레이 */
+        .result-overlay {
+            position: fixed; inset: 0;
+            background: rgba(15,23,42,0.97);
+            z-index: 3000;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 24px;
+            opacity: 0; transition: opacity 0.5s;
+            pointer-events: none;
+        }
+        .result-overlay.show { opacity: 1; pointer-events: auto; }
+        .result-title { font-size: 15px; color: #94a3b8; font-weight: bold; margin-bottom: 6px; letter-spacing: 0.1em; }
+        .result-winner-box {
+            text-align: center; margin-bottom: 28px;
+        }
+        .result-winner-name {
+            font-size: 32px; font-weight: 900; color: var(--primary);
+            opacity: 0; transform: scale(0.7);
+            transition: opacity 0.6s, transform 0.6s;
+        }
+        .result-winner-name.show { opacity: 1; transform: scale(1); }
+        .result-bars { width: 100%; max-width: 420px; margin-bottom: 28px; }
+        .result-bar-row { margin-bottom: 12px; }
+        .result-bar-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+        .result-bar-name { color: #e2e8f0; font-weight: bold; }
+        .result-bar-count { color: #94a3b8; }
+        .result-bar-track { background: #1e293b; border-radius: 8px; height: 14px; overflow: hidden; }
+        .result-bar-fill { height: 100%; border-radius: 8px; width: 0%; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
+        .result-bar-fill.winner-bar { background: var(--primary); }
+        .result-bar-fill.other-bar { background: #334155; }
+        .result-continue-btn {
+            padding: 14px 40px; background: var(--primary); color: #0f172a;
+            border: none; border-radius: 16px; font-size: 16px; font-weight: bold;
+            cursor: pointer; opacity: 0; transition: opacity 0.4s;
+        }
+        .result-continue-btn.show { opacity: 1; }
+        /* 컨페티 */
+        .confetti-piece {
+            position: fixed; width: 8px; height: 8px; border-radius: 2px;
+            opacity: 0; pointer-events: none; z-index: 3001;
+            animation: confettiFall 2.5s ease-in forwards;
+        }
+        @keyframes confettiFall {
+            0%   { opacity: 1; transform: translateY(-20px) rotate(0deg); }
+            100% { opacity: 0; transform: translateY(100vh) rotate(720deg); }
+        }
+
+        /* [v13.14] 제출 버튼 로딩 스피너 */
+        .btn-loading { opacity: 0.6; cursor: not-allowed !important; position: relative; }
+        .btn-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(0,0,0,0.3); border-top-color: #0f172a; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 6px; vertical-align: middle; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
         /* [v13.11] 식당 미리보기 바텀시트 */
         .bottomsheet-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.6);
@@ -235,6 +288,19 @@
                 <button class="order-popup-confirm" onclick="confirmOrder()">✅ 주문 확정</button>
             </div>
         </div>
+    </div>
+
+    <!-- [v13.14] 투표 결과 발표 오버레이 -->
+    <div class="result-overlay" id="resultOverlay">
+        <div class="result-title">🗳 투표 결과</div>
+        <div class="result-winner-box">
+            <div style="font-size:13px; color:#94a3b8; margin-bottom:8px;">오늘의 식당</div>
+            <div class="result-winner-name" id="resultWinnerName"></div>
+        </div>
+        <div class="result-bars" id="resultBars"></div>
+        <button class="result-continue-btn" id="resultContinueBtn" onclick="closeResultOverlay()">
+            🍽 메뉴 선택하러 가기
+        </button>
     </div>
 
     <!-- [v13.11] 식당 미리보기 바텀시트 -->
@@ -434,7 +500,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbywfY3wIUDXx7Ld7AN49SDn9h8aqJ1DDfYsnbC1PfoEPO4UoDSryTqX59kKm0JxVXnSUA/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbyy7pq47e-O9bSn97HdtKV2NRX_tDH25f96KioD6mZ1cUOr7oSR6tBJ5lYvzdMV_Bdhvg/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -450,6 +516,8 @@
         let timerInterval;
         let pollingInterval;   // 💡 [v13.0] 가변 폴링 간격 관리
         let currentEndTime = 0; // [v13.12] 현재 타이머의 endTime 추적 (중복 재시작 방지)
+        let resultShown = false;  // [v13.14] 결과 발표 한 번만 표시
+        let notificationSent = false; // [v13.14] 웹 알림 한 번만 발송
         let sideQtyMap = {};
         let pendingOrder = null; // 💡 [v13.0] 확인 팝업 대기 중인 주문 데이터
 
@@ -458,12 +526,14 @@
                 const res = await fetch(GAS_URL + "?type=get");
                 state = await res.json();
 
-                // [v13.10] 서버의 excludedNames로 excludedUsers 동기화
-                // 단, 관리자가 방금 체크한 불참(isAbsent) 자동 제외는 별도 처리되므로 덮어쓰지 않음
+                // [v13.13] 서버 excludedNames + 불참자 + side키 모두 합쳐서 동기화
                 if(state.excludedNames) {
-                    // 서버 목록을 기준으로 동기화 (사이드 제외키 side_N은 유지)
                     const sideKeys = [...excludedUsers].filter(k => k.startsWith('side_'));
-                    excludedUsers = new Set([...state.excludedNames, ...sideKeys]);
+                    // 불참자 추출 (orderData에서)
+                    const absentNames = (state.orderData || [])
+                        .filter(o => o.menu === '[불참]')
+                        .map(o => o.name);
+                    excludedUsers = new Set([...state.excludedNames, ...absentNames, ...sideKeys]);
                 }
 
                 renderUI();
@@ -474,11 +544,18 @@
                     }
                 }
                 if(state.status === "ORDERING") {
+                    // [v13.14] 처음 ORDERING 진입 시 결과 발표 오버레이
+                    if(!resultShown) {
+                        resultShown = true;
+                        showResultOverlay();
+                    }
                     renderTop3();
                     renderTop3Hist();
                     renderOrderProgress();
                     renderTeamBoard();
                 }
+                // [v13.14] VOTING 아닌 상태면 알림 플래그 리셋
+                if(state.status !== "VOTING") notificationSent = false;
             } catch (e) {}
         }
 
@@ -616,8 +693,9 @@
             ['waitingSection', 'votingSection', 'orderingSection'].forEach(s => document.getElementById(s).classList.add('hidden'));
 
             if(state.status === "WAITING") {
+                resultShown = false; // [v13.14] 대기 상태로 돌아오면 결과 발표 리셋
+                notificationSent = false;
                 document.getElementById('waitingSection').classList.remove('hidden');
-                // [v13.6] 관리자는 WAITING 상태에서도 대시보드 유지 (비관리자만 숨김)
                 if(!isAdmin) document.getElementById('adminDashboard').classList.add('hidden');
 
             } else if(state.status === "VOTING") {
@@ -1133,8 +1211,7 @@
                     // [현장주문] 표시
                     const isWalkInOrder = mainOrders.some(o => o.menu.startsWith('[현장주문]'));
                     const isAbsent = mainOrders.some(o => o.menu === '[불참]');
-                    // [v13.7] 불참자 자동 제외 처리
-                    if(isAbsent && !excludedUsers.has(empName)) excludedUsers.add(empName);
+                    // [v13.13] 불참자 제외는 updateState의 excludedNames 동기화에서 처리
                     let menuDisplay, subTotal;
                     if(isAbsent) {
                         menuDisplay = `<span style="color:#f43f5e;">🚫 불참 (자동제외)</span>`;
@@ -1521,20 +1598,22 @@
             });
         }
 
-        async function toggleExclude(key) {
+        function toggleExclude(key) {
             const isNowExcluded = !excludedUsers.has(key);
             if (isNowExcluded) excludedUsers.add(key);
             else excludedUsers.delete(key);
 
-            // [v13.10] 직원 이름 키만 서버에 저장 (side_N 키는 로컬 only)
+            // UI 즉시 업데이트 (서버 응답 기다리지 않음)
+            renderAdminDashboard();
+            renderTeamBoard();
+
+            // [v13.13] 서버 저장은 백그라운드로 (fire-and-forget)
             if(!key.startsWith('side_')) {
-                await fetch(GAS_URL, {
+                fetch(GAS_URL, {
                     method: "POST",
                     body: JSON.stringify({ type: "SET_EXCLUDE", name: key, excluded: isNowExcluded })
-                });
+                }); // await 없음 → UI 블로킹 없음
             }
-            renderAdminDashboard();
-            renderTeamBoard(); // [v13.10] 팀 현황판도 즉시 갱신
         }
 
         function renderGrid(containerId, data, callback, isMenu = false) {
@@ -1599,7 +1678,12 @@
                 timerEl.innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
                 timerEl.classList.toggle('warning', diff <= 30000);
 
-                // 💡 [v13.0] 10초 이하 진입 시 폴링 2초로 단축
+                // [v13.14] 30초 이하 웹 알림 (최초 1회)
+                if(diff <= 30000 && diff > 0 && !notificationSent) {
+                    notificationSent = true;
+                    sendTimerNotification(Math.ceil(diff / 1000));
+                }
+
                 if(diff <= 10000 && diff > 0) setFastPolling();
             }, 200);
         }
@@ -1628,6 +1712,104 @@
                         location.href = location.href.split('?')[0] + (location.search || '?') + '&_r=' + Date.now();
                     }, 800);
                 });
+        }
+
+        // [v13.14] 웹 알림 요청 및 발송
+        function requestNotificationPermission() {
+            if(!('Notification' in window)) return;
+            if(Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+
+        function sendTimerNotification(secsLeft) {
+            if(!('Notification' in window)) return;
+            if(Notification.permission !== 'granted') return;
+            new Notification('⏰ 투표 마감 임박!', {
+                body: `${secsLeft}초 후 투표가 마감됩니다. 아직 투표 안 하셨나요?`,
+                icon: 'https://raw.githubusercontent.com/gsw970303/my-vote/main/favicon.png',
+                tag: 'lunch-timer' // 중복 방지
+            });
+        }
+
+        // [v13.14] 투표 결과 발표 오버레이
+        function showResultOverlay() {
+            if(!state.voteCounts || Object.keys(state.voteCounts).length === 0) return;
+
+            const overlay = document.getElementById('resultOverlay');
+            const winnerName = document.getElementById('resultWinnerName');
+            const barsEl = document.getElementById('resultBars');
+            const continueBtn = document.getElementById('resultContinueBtn');
+
+            // 득표 정렬 (winner 먼저)
+            const entries = Object.entries(state.voteCounts)
+                .sort((a, b) => b[1] - a[1]);
+            const maxVotes = entries[0][1];
+            const totalVotes = entries.reduce((s, e) => s + e[1], 0);
+
+            // 바 차트 HTML 생성
+            barsEl.innerHTML = entries.map(([res, cnt]) => {
+                const isWinner = res === state.winner;
+                const pct = Math.round(cnt / maxVotes * 100);
+                return `<div class="result-bar-row">
+                    <div class="result-bar-label">
+                        <span class="result-bar-name">${isWinner ? '🏆 ' : ''}${res}</span>
+                        <span class="result-bar-count">${cnt}표 (${Math.round(cnt/totalVotes*100)}%)</span>
+                    </div>
+                    <div class="result-bar-track">
+                        <div class="result-bar-fill ${isWinner ? 'winner-bar' : 'other-bar'}"
+                             id="bar_${res.replace(/\s/g,'_')}" style="width:0%"></div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            // 오버레이 표시
+            overlay.classList.add('show');
+
+            // 순차 애니메이션
+            setTimeout(() => {
+                // 바 채우기
+                entries.forEach(([res]) => {
+                    const cnt = state.voteCounts[res];
+                    const pct = Math.round(cnt / maxVotes * 100);
+                    const el = document.getElementById('bar_' + res.replace(/\s/g,'_'));
+                    if(el) el.style.width = pct + '%';
+                });
+            }, 300);
+
+            setTimeout(() => {
+                // winner 이름 등장
+                winnerName.innerText = state.winner;
+                winnerName.classList.add('show');
+            }, 1200);
+
+            setTimeout(() => {
+                // 컨페티
+                launchConfetti();
+                continueBtn.classList.add('show');
+            }, 1800);
+        }
+
+        function closeResultOverlay() {
+            document.getElementById('resultOverlay').classList.remove('show');
+        }
+
+        function launchConfetti() {
+            const colors = ['#00ff88','#f43f5e','#60a5fa','#fba51a','#a78bfa','#34d399'];
+            for(let i = 0; i < 60; i++) {
+                setTimeout(() => {
+                    const el = document.createElement('div');
+                    el.className = 'confetti-piece';
+                    el.style.left = Math.random() * 100 + 'vw';
+                    el.style.top = '-10px';
+                    el.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    el.style.animationDelay = Math.random() * 0.5 + 's';
+                    el.style.animationDuration = (1.5 + Math.random()) + 's';
+                    el.style.transform = `rotate(${Math.random()*360}deg)`;
+                    document.body.appendChild(el);
+                    setTimeout(() => el.remove(), 3000);
+                }, i * 30);
+            }
         }
 
         function sendVote() {
@@ -1686,6 +1868,13 @@
         function confirmOrder() {
             if(!pendingOrder) return;
             document.getElementById('orderPopup').classList.remove('show');
+
+            // [v13.14] 확정 버튼 로딩 처리
+            const confirmBtn = document.querySelector('.order-popup-confirm');
+            if(confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<span class="btn-spinner"></span>제출 중...';
+            }
             localStorage.setItem(todayKey, 'true');
 
             // [v13.9] 내 주문 내역을 localStorage에 저장해서 새로고침 후에도 유지
@@ -1743,6 +1932,8 @@
         }
 
         // 💡 [v13.0] 초기 폴링은 5초, 타이머 종료 임박 시 자동으로 1초로 단축됨
+        // [v13.14] 알림 권한 요청 (처음 방문 시)
+        requestNotificationPermission();
         setNormalPolling();
         updateState();
     </script>
