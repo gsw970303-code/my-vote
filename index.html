@@ -71,6 +71,35 @@
         .result-bar-fill { height: 100%; border-radius: 8px; width: 0%; transition: width 0.8s cubic-bezier(.4,0,.2,1); }
         .result-bar-fill.winner-bar { background: var(--primary); }
         .result-bar-fill.other-bar { background: #334155; }
+        .result-bar-fill.tie-bar { background: #f43f5e; }
+        /* 동률 후보 깜빡임 */
+        @keyframes tieFlash {
+            0%,100% { opacity: 1; color: #f43f5e; text-shadow: 0 0 12px #f43f5e; }
+            50%      { opacity: 0.3; color: #94a3b8; text-shadow: none; }
+        }
+        .tie-candidate { animation: tieFlash 0.5s infinite; }
+        /* 추첨 룰렛 텍스트 */
+        @keyframes rouletteSpin {
+            0%   { transform: translateY(0px);   opacity: 1; }
+            40%  { transform: translateY(-8px);  opacity: 0; }
+            60%  { transform: translateY(8px);   opacity: 0; }
+            100% { transform: translateY(0px);   opacity: 1; }
+        }
+        .roulette-text { display: inline-block; animation: rouletteSpin 0.35s ease-in-out; }
+        /* winner 등장 시 펄스 */
+        @keyframes winnerPulse {
+            0%   { text-shadow: 0 0 0px var(--primary); }
+            50%  { text-shadow: 0 0 30px var(--primary), 0 0 60px var(--primary); }
+            100% { text-shadow: 0 0 8px var(--primary); }
+        }
+        .winner-pulse { animation: winnerPulse 1s ease-in-out 2; }
+        /* 동률 배지 */
+        .tie-badge {
+            display: inline-block; background: rgba(244,63,94,0.15);
+            border: 1px solid #f43f5e; color: #f43f5e;
+            font-size: 11px; font-weight: bold; padding: 2px 8px;
+            border-radius: 8px; margin-left: 8px; vertical-align: middle;
+        }
         .result-continue-btn {
             padding: 14px 40px; background: var(--primary); color: #0f172a;
             border: none; border-radius: 16px; font-size: 16px; font-weight: bold;
@@ -1736,79 +1765,162 @@
         function showResultOverlay() {
             if(!state.voteCounts || Object.keys(state.voteCounts).length === 0) return;
 
-            const overlay = document.getElementById('resultOverlay');
-            const winnerName = document.getElementById('resultWinnerName');
-            const barsEl = document.getElementById('resultBars');
+            const overlay   = document.getElementById('resultOverlay');
+            const titleEl   = document.getElementById('resultOverlay').querySelector('.result-title');
+            const winnerEl  = document.getElementById('resultWinnerName');
+            const winnerBox = document.getElementById('resultWinnerName').parentElement;
+            const barsEl    = document.getElementById('resultBars');
             const continueBtn = document.getElementById('resultContinueBtn');
 
-            // 득표 정렬 (winner 먼저)
-            const entries = Object.entries(state.voteCounts)
-                .sort((a, b) => b[1] - a[1]);
-            const maxVotes = entries[0][1];
-            const totalVotes = entries.reduce((s, e) => s + e[1], 0);
+            const entries    = Object.entries(state.voteCounts).sort((a,b) => b[1]-a[1]);
+            const maxVotes   = entries[0][1];
+            const totalVotes = entries.reduce((s,e) => s+e[1], 0);
 
-            // 바 차트 HTML 생성
+            // 동률 여부 판별
+            const tiedCandidates = entries.filter(([,cnt]) => cnt === maxVotes).map(([r]) => r);
+            const isTie = tiedCandidates.length > 1;
+
+            // 바 차트 HTML
             barsEl.innerHTML = entries.map(([res, cnt]) => {
-                const isWinner = res === state.winner;
+                const isWinner  = res === state.winner;
+                const isTieCand = isTie && tiedCandidates.includes(res);
+                const barClass  = isWinner ? 'winner-bar' : isTieCand ? 'tie-bar' : 'other-bar';
                 const pct = Math.round(cnt / maxVotes * 100);
+                const tieBadge = isTieCand && !isWinner ? '<span class="tie-badge">동률</span>' : '';
                 return `<div class="result-bar-row">
                     <div class="result-bar-label">
-                        <span class="result-bar-name">${isWinner ? '🏆 ' : ''}${res}</span>
+                        <span class="result-bar-name" id="barlabel_${res.replace(/[^a-zA-Z0-9]/g,'_')}">
+                            ${isWinner ? '🏆 ' : ''}${res}${tieBadge}
+                        </span>
                         <span class="result-bar-count">${cnt}표 (${Math.round(cnt/totalVotes*100)}%)</span>
                     </div>
                     <div class="result-bar-track">
-                        <div class="result-bar-fill ${isWinner ? 'winner-bar' : 'other-bar'}"
-                             id="bar_${res.replace(/\s/g,'_')}" style="width:0%"></div>
+                        <div class="result-bar-fill ${barClass}"
+                             id="bar_${res.replace(/[^a-zA-Z0-9]/g,'_')}" style="width:0%"></div>
                     </div>
                 </div>`;
             }).join('');
 
-            // 오버레이 표시
             overlay.classList.add('show');
 
-            // 순차 애니메이션
-            setTimeout(() => {
+            if(isTie) {
+                // ── 동률 연출 ──────────────────────────────────
+                titleEl.innerHTML = '⚡ 동률 발생!';
+                titleEl.style.color = '#f43f5e';
+                winnerBox.querySelector('div').innerText = '랜덤 추첨 중...';
+                winnerEl.style.color = '#f43f5e';
+                winnerEl.style.fontSize = '22px';
+
                 // 바 채우기
-                entries.forEach(([res]) => {
-                    const cnt = state.voteCounts[res];
-                    const pct = Math.round(cnt / maxVotes * 100);
-                    const el = document.getElementById('bar_' + res.replace(/\s/g,'_'));
-                    if(el) el.style.width = pct + '%';
-                });
-            }, 300);
+                setTimeout(() => {
+                    entries.forEach(([res]) => {
+                        const pct = Math.round(state.voteCounts[res] / maxVotes * 100);
+                        const el = document.getElementById('bar_' + res.replace(/[^a-zA-Z0-9]/g,'_'));
+                        if(el) el.style.width = pct + '%';
+                    });
+                    // 동률 후보 라벨 깜빡임
+                    tiedCandidates.forEach(res => {
+                        const lbl = document.getElementById('barlabel_' + res.replace(/[^a-zA-Z0-9]/g,'_'));
+                        if(lbl) lbl.classList.add('tie-candidate');
+                    });
+                }, 300);
 
-            setTimeout(() => {
-                // winner 이름 등장
-                winnerName.innerText = state.winner;
-                winnerName.classList.add('show');
-            }, 1200);
+                // 룰렛: 동률 후보 이름 빠르게 돌리기
+                setTimeout(() => {
+                    winnerEl.classList.add('show');
+                    let idx = 0, count = 0;
+                    const totalSpins = 18; // 돌리는 횟수
+                    const rouletteInterval = setInterval(() => {
+                        const name = tiedCandidates[idx % tiedCandidates.length];
+                        winnerEl.classList.remove('roulette-text');
+                        void winnerEl.offsetWidth; // reflow
+                        winnerEl.classList.add('roulette-text');
+                        winnerEl.innerText = name;
+                        idx++;
+                        count++;
+                        // 점점 느려지게
+                        if(count >= totalSpins) {
+                            clearInterval(rouletteInterval);
+                            // 동률 후보 깜빡임 제거
+                            tiedCandidates.forEach(res => {
+                                const lbl = document.getElementById('barlabel_' + res.replace(/[^a-zA-Z0-9]/g,'_'));
+                                if(lbl) lbl.classList.remove('tie-candidate');
+                            });
+                            // 최종 winner 등장
+                            setTimeout(() => {
+                                titleEl.innerHTML = '🎰 추첨 결과!';
+                                titleEl.style.color = '#fba51a';
+                                winnerBox.querySelector('div').innerText = '오늘의 식당';
+                                winnerEl.classList.remove('roulette-text');
+                                winnerEl.style.color = 'var(--primary)';
+                                winnerEl.style.fontSize = '32px';
+                                winnerEl.innerText = state.winner;
+                                winnerEl.classList.add('winner-pulse');
+                                // winner 바만 초록으로 교체
+                                const winBar = document.getElementById('bar_' + state.winner.replace(/[^a-zA-Z0-9]/g,'_'));
+                                if(winBar) { winBar.classList.remove('tie-bar'); winBar.classList.add('winner-bar'); }
+                                const winLbl = document.getElementById('barlabel_' + state.winner.replace(/[^a-zA-Z0-9]/g,'_'));
+                                if(winLbl) winLbl.innerHTML = '🏆 ' + state.winner;
+                                setTimeout(() => { launchConfetti(true); continueBtn.classList.add('show'); }, 500);
+                            }, 400);
+                        }
+                    }, 200 + count * 18); // 점점 느려짐
+                }, 1200);
 
-            setTimeout(() => {
-                // 컨페티
-                launchConfetti();
-                continueBtn.classList.add('show');
-            }, 1800);
+            } else {
+                // ── 일반 연출 ──────────────────────────────────
+                titleEl.innerHTML = '🗳 투표 결과';
+                titleEl.style.color = '#94a3b8';
+                winnerBox.querySelector('div').innerText = '오늘의 식당';
+
+                setTimeout(() => {
+                    entries.forEach(([res]) => {
+                        const pct = Math.round(state.voteCounts[res] / maxVotes * 100);
+                        const el = document.getElementById('bar_' + res.replace(/[^a-zA-Z0-9]/g,'_'));
+                        if(el) el.style.width = pct + '%';
+                    });
+                }, 300);
+
+                setTimeout(() => {
+                    winnerEl.innerText = state.winner;
+                    winnerEl.classList.add('show');
+                }, 1200);
+
+                setTimeout(() => {
+                    launchConfetti(false);
+                    continueBtn.classList.add('show');
+                }, 1800);
+            }
         }
 
         function closeResultOverlay() {
             document.getElementById('resultOverlay').classList.remove('show');
         }
 
-        function launchConfetti() {
-            const colors = ['#00ff88','#f43f5e','#60a5fa','#fba51a','#a78bfa','#34d399'];
-            for(let i = 0; i < 60; i++) {
+        function launchConfetti(isTie = false) {
+            // 동률이면 빨강/주황 강조 + 더 많은 조각, 일반은 초록 강조
+            const colors = isTie
+                ? ['#f43f5e','#fba51a','#ff6b6b','#ffd93d','#ff8c00','#00ff88']
+                : ['#00ff88','#60a5fa','#fba51a','#a78bfa','#34d399','#f43f5e'];
+            const count = isTie ? 100 : 60;
+            for(let i = 0; i < count; i++) {
                 setTimeout(() => {
                     const el = document.createElement('div');
                     el.className = 'confetti-piece';
+                    // 동률이면 더 다양한 모양 (원형 섞기)
+                    if(isTie && Math.random() > 0.5) el.style.borderRadius = '50%';
+                    const size = isTie ? (6 + Math.random() * 8) : 8;
+                    el.style.width = size + 'px';
+                    el.style.height = size + 'px';
                     el.style.left = Math.random() * 100 + 'vw';
                     el.style.top = '-10px';
                     el.style.background = colors[Math.floor(Math.random() * colors.length)];
-                    el.style.animationDelay = Math.random() * 0.5 + 's';
-                    el.style.animationDuration = (1.5 + Math.random()) + 's';
+                    el.style.animationDelay = Math.random() * 0.8 + 's';
+                    el.style.animationDuration = (1.5 + Math.random() * 1.5) + 's';
                     el.style.transform = `rotate(${Math.random()*360}deg)`;
                     document.body.appendChild(el);
-                    setTimeout(() => el.remove(), 3000);
-                }, i * 30);
+                    setTimeout(() => el.remove(), 4000);
+                }, i * 25);
             }
         }
 
