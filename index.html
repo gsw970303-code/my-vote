@@ -549,6 +549,7 @@
         let currentEndTime = 0; // [v13.12] 현재 타이머의 endTime 추적 (중복 재시작 방지)
         let resultShown = false;  // [v13.14] 결과 발표 한 번만 표시
         let notificationSent = false; // [v13.14] 웹 알림 한 번만 발송
+        let tabFlashInterval = null;   // [v2.1] 탭 타이틀 깜빡임
         let sideQtyMap = {};
         let pendingOrder = null; // 💡 [v13.0] 확인 팝업 대기 중인 주문 데이터
 
@@ -586,7 +587,10 @@
                     renderTeamBoard();
                 }
                 // [v13.14] VOTING 아닌 상태면 알림 플래그 리셋
-                if(state.status !== "VOTING") notificationSent = false;
+                if(state.status !== "VOTING") {
+                    notificationSent = false;
+                    stopTabFlash(); // [v2.1] 투표 끝나면 탭 타이틀 복원
+                }
             } catch (e) {}
         }
 
@@ -727,8 +731,9 @@
             ['waitingSection', 'votingSection', 'orderingSection'].forEach(s => document.getElementById(s).classList.add('hidden'));
 
             if(state.status === "WAITING") {
-                resultShown = false; // [v13.14] 대기 상태로 돌아오면 결과 발표 리셋
+                resultShown = false;
                 notificationSent = false;
+                stopTabFlash(); // [v2.1] 대기 상태 복귀 시 탭 타이틀 복원
                 document.getElementById('waitingSection').classList.remove('hidden');
                 if(!isAdmin) document.getElementById('adminDashboard').classList.add('hidden');
 
@@ -1711,11 +1716,14 @@
                 timerEl.innerText = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
                 timerEl.classList.toggle('warning', diff <= 30000);
 
-                // [v13.14] 30초 이하 웹 알림 (최초 1회)
+                // [v2.1] 30초 이하: 탭 타이틀 깜빡임 + 웹 알림 (최초 1회)
                 if(diff <= 30000 && diff > 0 && !notificationSent) {
                     notificationSent = true;
                     sendTimerNotification(Math.ceil(diff / 1000));
+                    startTabFlash();
                 }
+                // 타이머 종료 시 탭 타이틀 복원
+                if(diff <= 0) stopTabFlash();
 
                 if(diff <= 10000 && diff > 0) setFastPolling();
             }, 200);
@@ -1761,8 +1769,28 @@
             new Notification('⏰ 투표 마감 임박!', {
                 body: `${secsLeft}초 후 투표가 마감됩니다. 아직 투표 안 하셨나요?`,
                 icon: 'https://raw.githubusercontent.com/gsw970303/my-vote/main/favicon.png',
-                tag: 'lunch-timer' // 중복 방지
+                tag: 'lunch-timer'
             });
+        }
+
+        // [v2.1] 탭 타이틀 깜빡임 시작
+        function startTabFlash() {
+            if(tabFlashInterval) return; // 이미 실행 중이면 중복 방지
+            const originalTitle = 'Lunch Pro v2.0';
+            let isFlash = false;
+            tabFlashInterval = setInterval(() => {
+                isFlash = !isFlash;
+                document.title = isFlash ? '⏰ 마감 임박!' : originalTitle;
+            }, 800);
+        }
+
+        // [v2.1] 탭 타이틀 깜빡임 중지 + 원래 제목 복원
+        function stopTabFlash() {
+            if(tabFlashInterval) {
+                clearInterval(tabFlashInterval);
+                tabFlashInterval = null;
+            }
+            document.title = 'Lunch Pro v2.0';
         }
 
         // [v13.14] 투표 결과 발표 오버레이
