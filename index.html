@@ -40,6 +40,16 @@
         .badge-visited { position: absolute; top: 5px; left: 5px; background: rgba(244,63,94,0.15); color: #f43f5e; border: 1px solid #f43f5e; font-size: 10px; font-weight: bold; padding: 2px 5px; border-radius: 6px; }
         .badge-freq { position: absolute; bottom: 5px; left: 5px; background: rgba(0,255,136,0.15); color: var(--primary); border: 1px solid var(--primary); font-size: 10px; font-weight: bold; padding: 2px 5px; border-radius: 6px; pointer-events:none; }
 
+        /* [v13.15] 투표 이름 선택 */
+        .vote-name-section { margin-bottom: 16px; text-align: left; }
+        .vote-name-label { font-size: 12px; color: #94a3b8; font-weight: bold; margin-bottom: 8px; display: block; }
+        .vote-name-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .vote-name-btn { background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 8px 6px; font-size: 12px; color: #e2e8f0; cursor: pointer; text-align: center; transition: 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .vote-name-btn:hover { border-color: var(--primary); color: var(--primary); }
+        .vote-name-btn.selected { background: var(--primary); color: #0f172a; font-weight: bold; border-color: var(--primary); }
+        .vote-name-btn.voted { background: rgba(0,255,136,0.08); border-color: rgba(0,255,136,0.3); color: #64748b; cursor: default; }
+        .vote-name-btn.voted::after { content: ' ✓'; color: var(--primary); }
+
         /* [v13.14] 투표 결과 발표 오버레이 */
         .result-overlay {
             position: fixed; inset: 0;
@@ -379,6 +389,11 @@
                 <div class="rule-text">📢 식당은 과반수로 정해지게 됩니다<br>(미투표 시 투표인원들 중 과반수로 가게 됨)</div>
                 <div class="progress-container"><div id="voteProgress" class="progress-bar"></div></div>
                 <p id="voteCountText" style="font-size:12px; color:var(--primary); margin-top:5px;"></p>
+                <!-- [v13.15] 이름 먼저 선택 -->
+                <div class="vote-name-section">
+                    <span class="vote-name-label">👤 먼저 이름을 선택해주세요</span>
+                    <div class="vote-name-grid" id="voteNameGrid"></div>
+                </div>
                 <div class="grid" id="resGrid"></div>
             </div>
         </div>
@@ -529,7 +544,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbyy7pq47e-O9bSn97HdtKV2NRX_tDH25f96KioD6mZ1cUOr7oSR6tBJ5lYvzdMV_Bdhvg/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbxccxoflanUia5d5so28pwBRgCvbSN_wwp9mj3wnvY3I2EyXC1uxQ2emwKtOF_NKddJ2w/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -540,7 +555,7 @@
         const todayKey = 'ordered_' + _d.getFullYear() + '-' + String(_d.getMonth()+1).padStart(2,'0') + '-' + String(_d.getDate()).padStart(2,'0');
         
         let state = {};
-        let selected = { res: null, user: null, menu: null, price: 0, rawMenuName: null, doubleFee: 0, attend: null };
+        let selected = { res: null, user: null, menu: null, price: 0, rawMenuName: null, doubleFee: 0, attend: null, voteUserName: null };
         let excludedUsers = new Set(); 
         let timerInterval;
         let pollingInterval;   // 💡 [v13.0] 가변 폴링 간격 관리
@@ -603,6 +618,32 @@
             });
         }
 
+        // [v13.15] 투표 이름 선택 그리드
+        function renderVoteNameGrid() {
+            const grid = document.getElementById('voteNameGrid');
+            if(!grid || !state.employees) return;
+            const votedSet = new Set(state.votedNames || []);
+            grid.innerHTML = state.employees.map(emp => {
+                const isVoted  = votedSet.has(emp);
+                const isMine   = selected.voteUserName === emp;
+                let cls = 'vote-name-btn';
+                if(isMine) cls += ' selected';
+                else if(isVoted) cls += ' voted';
+                return `<button class="${cls}" onclick="selectVoteName('${emp}')">${emp}</button>`;
+            }).join('');
+        }
+
+        function selectVoteName(name) {
+            // 이미 투표 완료한 사람 클릭 시 본인 재선택만 허용
+            const votedSet = new Set(state.votedNames || []);
+            if(votedSet.has(name) && selected.voteUserName !== name) {
+                alert(`${name}님은 이미 투표했습니다.`);
+                return;
+            }
+            selected.voteUserName = name;
+            renderVoteNameGrid();
+        }
+
         function openResBottomSheet(resName) {
             const details = state.restaurantDetails && state.restaurantDetails[resName];
 
@@ -636,11 +677,15 @@
             // 투표 버튼 상태
             const voteBtn = document.getElementById('bsVoteBtn');
             const alreadyVoted = selected.res === resName;
-            if(alreadyVoted) {
-                voteBtn.textContent = '✅ 이미 투표한 식당입니다';
+            const noName = !selected.voteUserName;
+            if(noName) {
+                voteBtn.textContent = '👤 먼저 이름을 선택해주세요';
+                voteBtn.className = 'bottomsheet-vote-btn already-voted';
+            } else if(alreadyVoted) {
+                voteBtn.textContent = `✅ ${resName} 이미 투표함`;
                 voteBtn.className = 'bottomsheet-vote-btn already-voted';
             } else {
-                voteBtn.textContent = `✅ ${resName} 투표하기`;
+                voteBtn.textContent = `✅ ${selected.voteUserName}으로 투표하기`;
                 voteBtn.className = 'bottomsheet-vote-btn';
             }
             voteBtn.dataset.resname = resName;
@@ -653,6 +698,10 @@
         }
 
         function confirmResVote() {
+            if(!selected.voteUserName) {
+                alert('먼저 이름을 선택해주세요!');
+                return;
+            }
             const resName = document.getElementById('bsVoteBtn').dataset.resname;
             if(selected.res === resName) {
                 document.getElementById('resBottomSheet').classList.remove('show');
@@ -660,7 +709,6 @@
             }
             selected.res = resName;
             sendVote();
-            // 투표한 식당 active 표시 갱신
             document.querySelectorAll('#resGrid .item').forEach(el => {
                 el.classList.toggle('active', el.innerText.trim() === resName);
             });
@@ -671,6 +719,13 @@
         // 💡 [v12.0] 투표 팝업 열기/닫기
         function openVotePopup(resName) {
             document.getElementById('votePopupRes').innerText = resName;
+            // [v13.15] 투표자 이름도 팝업에 표시
+            const sub = document.getElementById('votePopup').querySelector('.vote-popup-sub');
+            if(sub && selected.voteUserName) {
+                sub.innerHTML = `<b style="color:white;">${selected.voteUserName}</b>님의 투표가 완료되었습니다!<br>
+                    <span style="color:#fba51a; font-weight:bold;">⏱ 시간 내 재투표 가능합니다</span><br>
+                    <span style="font-size:12px;">식당 버튼을 다시 누르면 변경됩니다.</span>`;
+            }
             document.getElementById('votePopup').classList.add('show');
         }
         function closeVotePopup() {
@@ -734,7 +789,7 @@
                 // 관리자 연장 버튼 표시
                 if(isAdmin) document.getElementById('adminVoteControls').classList.remove('hidden');
 
-                // [v13.12] 매 폴링마다 재렌더 (타이머 종료 후 상태 전환 감지)
+                renderVoteNameGrid(); // [v13.15] 이름 선택 그리드
                 renderResGrid();
                 renderVoteBadges();
                 startLocalTimer(state.endTime);
@@ -1925,7 +1980,13 @@
         }
 
         function sendVote() {
-            fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "VOTE", deviceId: deviceId, choice: selected.res }) });
+            // [v13.15] userName 기준 1인1표
+            fetch(GAS_URL, { method: "POST", body: JSON.stringify({
+                type: "VOTE",
+                deviceId: deviceId,
+                userName: selected.voteUserName,
+                choice: selected.res
+            })});
         }
         
         // 💡 [v13.0] 주문 팝업 열기: 제출 전 내역 보여주기
