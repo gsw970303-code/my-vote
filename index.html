@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.1</title>
+    <title>Lunch Pro v3.2</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
-        .container { max-width: 480px; margin: 0 auto; padding: 20px; }
-        .card { background: var(--card); padding: 30px; border-radius: 24px; border: 1px solid #475569; margin-bottom: 20px; position: relative; }
-        .timer { font-size: 64px; color: var(--primary); font-weight: 800; margin: 10px 0; font-variant-numeric: tabular-nums; }
+        .container { max-width: 720px; margin: 0 auto; padding: 20px; }
+        .card { background: var(--card); padding: 36px; border-radius: 24px; border: 1px solid #475569; margin-bottom: 20px; position: relative; }
+        .timer { font-size: 80px; color: var(--primary); font-weight: 800; margin: 10px 0; font-variant-numeric: tabular-nums; }
         .timer.warning { color: #f43f5e; animation: pulse 0.6s infinite alternate; }
         @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
         .rule-text { font-size: 13px; color: #fba51a; font-weight: bold; line-height: 1.5; margin: 5px 0 15px 0; background: rgba(251, 165, 26, 0.1); padding: 8px; border-radius: 8px; border: 1px dashed rgba(251, 165, 26, 0.3); }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 20px; }
         .item { background: #0f172a; padding: 18px; border-radius: 16px; border: 2px solid #334155; cursor: pointer; transition: 0.1s; position: relative; }
         .item.active { background: var(--primary); color: #0f172a; font-weight: bold; border-color: var(--primary); }
         .btn-main { width: 100%; padding: 16px; background: var(--primary); color: #0f172a; border: none; border-radius: 16px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
@@ -33,7 +33,7 @@
         .pside-item { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 14px; }
         .pside-item input { transform: scale(1.2); margin-right: 8px; cursor: pointer; }
         .admin-navbar { display: flex; background: #0f172a; border-radius: 16px; padding: 5px; margin-bottom: 15px; border: 1px solid #334155; }
-        .admin-nav-item { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 14px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; }
+        .admin-nav-item { flex: 1; padding: 14px; text-align: center; cursor: pointer; font-size: 15px; font-weight: bold; border-radius: 12px; color: #94a3b8; transition: 0.2s; }
         .admin-nav-item.active { background: var(--primary); color: #0f172a; }
         .badge-recent { position: absolute; top: 5px; right: 5px; background: #fba51a; color: #0f172a; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 8px; }
         /* [v13.3] 식당 로테이션 경고 배지 */
@@ -131,8 +131,8 @@
         .menu-card-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; background: #1e293b; display: block; }
         .menu-card-img-placeholder { width: 100%; aspect-ratio: 4/3; background: #1e293b; display: flex; align-items: center; justify-content: center; font-size: 28px; }
         .menu-card-body { padding: 10px; }
-        .menu-card-name { font-size: 12px; color: #e2e8f0; font-weight: bold; line-height: 1.3; margin-bottom: 4px; }
-        .menu-card-price { font-size: 12px; color: var(--primary); font-weight: bold; }
+        .menu-card-name { font-size: 13px; color: #e2e8f0; font-weight: bold; line-height: 1.3; margin-bottom: 4px; }
+        .menu-card-price { font-size: 13px; color: var(--primary); font-weight: bold; }
         .menu-card .badge-recent { top: 4px; right: 4px; font-size: 9px; padding: 2px 5px; }
         .menu-card .badge-freq { bottom: 4px; left: 4px; font-size: 9px; padding: 2px 5px; }
         /* 바텀시트 메뉴 사진 */
@@ -220,7 +220,7 @@
         .bottomsheet-overlay.show { opacity: 1; pointer-events: auto; }
         .bottomsheet {
             position: fixed; bottom: 0; left: 50%; transform: translateX(-50%) translateY(100%);
-            width: 100%; max-width: 480px;
+            width: 100%; max-width: 720px;
             background: var(--card); border-radius: 24px 24px 0 0;
             border-top: 2px solid #475569;
             padding: 0 0 24px 0;
@@ -262,7 +262,7 @@
         /* [v13.9] 팀 현황판 */
         .team-board { background:#0f172a; border:1px solid #334155; border-radius:16px; padding:14px; margin-bottom:14px; }
         .team-board-title { font-size:12px; color:#94a3b8; font-weight:bold; margin-bottom:10px; }
-        .team-board-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+        .team-board-grid { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px; }
         .team-member-card { background:#1e293b; border-radius:10px; padding:8px 10px; border:1px solid #334155; }
         .team-member-card.done { border-color: rgba(0,255,136,0.4); background:rgba(0,255,136,0.05); }
         .team-member-card.absent { border-color: rgba(244,63,94,0.3); background:rgba(244,63,94,0.05); }
@@ -499,7 +499,7 @@
                     <div class="grid" id="userGrid"></div>
                     <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
                     <button id="randomBtn" class="lucky-btn" onclick="randomMenuSlot()">🎲 결정 장애? 슬롯머신!</button>
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:16px;" id="menuGrid"></div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:16px;" id="menuGrid"></div>
                     
                     <div id="doubleSizeArea" class="pside-container hidden" style="border-color: var(--primary);">
                         <label style="display:flex; align-items:center; cursor:pointer; font-weight:bold; color:var(--primary);">
@@ -1938,7 +1938,7 @@
         // [v2.1] 탭 타이틀 깜빡임 시작
         function startTabFlash() {
             if(tabFlashInterval) return; // 이미 실행 중이면 중복 방지
-            const originalTitle = 'Lunch Pro v3.1';
+            const originalTitle = 'Lunch Pro v3.2';
             let isFlash = false;
             tabFlashInterval = setInterval(() => {
                 isFlash = !isFlash;
@@ -1952,7 +1952,7 @@
                 clearInterval(tabFlashInterval);
                 tabFlashInterval = null;
             }
-            document.title = 'Lunch Pro v3.1';
+            document.title = 'Lunch Pro v3.2';
         }
 
         // [v13.14] 투표 결과 발표 오버레이
