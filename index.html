@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.0</title>
+    <title>Lunch Pro v3.1</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -141,6 +141,74 @@
         /* 네이버지도 버튼 */
         .map-btn { display: inline-flex; align-items: center; gap: 4px; background: rgba(0,200,81,0.12); border: 1px solid rgba(0,200,81,0.4); color: #00c851; border-radius: 8px; padding: 4px 10px; font-size: 12px; font-weight: bold; cursor: pointer; text-decoration: none; white-space: nowrap; }
         .map-btn:hover { background: #00c851; color: white; }
+
+        /* [v3.1] 라이트박스 */
+        .lightbox-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.92);
+            z-index: 9000;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.2s;
+            pointer-events: none;
+        }
+        .lightbox-overlay.show { opacity: 1; pointer-events: auto; }
+        .lightbox-content {
+            position: relative;
+            max-width: min(700px, 90vw);
+            max-height: 85vh;
+            display: flex; flex-direction: column; align-items: center;
+            transform: scale(0.9); transition: transform 0.2s;
+        }
+        .lightbox-overlay.show .lightbox-content { transform: scale(1); }
+        .lightbox-img {
+            max-width: 100%; max-height: 70vh;
+            border-radius: 16px; object-fit: contain;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        }
+        .lightbox-caption {
+            margin-top: 14px; text-align: center;
+        }
+        .lightbox-caption-name { font-size: 18px; font-weight: bold; color: white; }
+        .lightbox-caption-price { font-size: 14px; color: var(--primary); margin-top: 4px; }
+        .lightbox-close {
+            position: absolute; top: -40px; right: 0;
+            background: rgba(255,255,255,0.1); border: none; color: white;
+            width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+            font-size: 18px; display: flex; align-items: center; justify-content: center;
+        }
+        .lightbox-close:hover { background: rgba(255,255,255,0.25); }
+        .lightbox-nav {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            background: rgba(255,255,255,0.1); border: none; color: white;
+            width: 44px; height: 44px; border-radius: 50%; cursor: pointer;
+            font-size: 20px; display: flex; align-items: center; justify-content: center;
+            transition: 0.15s;
+        }
+        .lightbox-nav:hover { background: rgba(255,255,255,0.25); }
+        .lightbox-prev { left: -60px; }
+        .lightbox-next { right: -60px; }
+        .lightbox-nav.hidden { opacity: 0; pointer-events: none; }
+        .lightbox-counter { font-size: 12px; color: #64748b; margin-top: 8px; }
+        /* 메뉴 카드 호버 확대 힌트 */
+        .menu-card-img-wrap { position: relative; overflow: hidden; }
+        .menu-card-img-wrap::after {
+            content: '🔍';
+            position: absolute; inset: 0;
+            background: rgba(0,0,0,0.35);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px;
+            opacity: 0; transition: opacity 0.15s;
+        }
+        .menu-card:hover .menu-card-img-wrap::after { opacity: 1; }
+        /* 바텀시트 사진 호버 */
+        .bs-img-wrap { position: relative; cursor: zoom-in; flex-shrink: 0; }
+        .bs-img-wrap::after {
+            content: '🔍'; position: absolute; inset: 0;
+            background: rgba(0,0,0,0.4); border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; opacity: 0; transition: 0.15s;
+        }
+        .bs-img-wrap:hover::after { opacity: 1; }
 
         /* [v13.11] 식당 미리보기 바텀시트 */
         .bottomsheet-overlay {
@@ -350,6 +418,21 @@
         <button class="result-continue-btn" id="resultContinueBtn" onclick="closeResultOverlay()">
             🍽 메뉴 선택하러 가기
         </button>
+    </div>
+
+    <!-- [v3.1] 라이트박스 -->
+    <div class="lightbox-overlay" id="lightboxOverlay" onclick="closeLightboxOnBg(event)">
+        <div class="lightbox-content">
+            <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+            <button class="lightbox-nav lightbox-prev" id="lbPrev" onclick="lightboxNav(-1)">‹</button>
+            <img class="lightbox-img" id="lightboxImg" src="" alt="">
+            <button class="lightbox-nav lightbox-next" id="lbNext" onclick="lightboxNav(1)">›</button>
+            <div class="lightbox-caption">
+                <div class="lightbox-caption-name" id="lightboxName"></div>
+                <div class="lightbox-caption-price" id="lightboxPrice"></div>
+            </div>
+            <div class="lightbox-counter" id="lightboxCounter"></div>
+        </div>
     </div>
 
     <!-- [v13.11] 식당 미리보기 바텀시트 -->
@@ -677,8 +760,10 @@
                 menuList.innerHTML = details.menus.map(m => {
                     const cleanName = String(m.name).replace(/\(곱빼기 가능:.*\)/g,'').trim();
                     const imgHtml = m.image
-                        ? `<img class="bs-menu-img" src="${m.image}" alt="${cleanName}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                           <div class="bs-menu-img-placeholder" style="display:none;">🍽</div>`
+                        ? `<div class="bs-img-wrap" onclick="openLightboxFromBS(event, details.menus, ${`details.menus.indexOf(m)`})">
+                               <img class="bs-menu-img" src="${m.image}" alt="${cleanName}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                               <div class="bs-menu-img-placeholder" style="display:none;">🍽</div>
+                           </div>`
                         : `<div class="bs-menu-img-placeholder">🍽</div>`;
                     return `<div class="bottomsheet-menu-item" style="gap:12px;">
                         ${imgHtml}
@@ -1726,8 +1811,10 @@
                     div.className = 'menu-card';
                     const cleanName = item.name.replace(/\(곱빼기 가능:.*\)/g, '').trim();
                     const imgHtml = item.image
-                        ? `<img class="menu-card-img" src="${item.image}" alt="${cleanName}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
-                           <div class="menu-card-img-placeholder" style="display:none;">🍽</div>`
+                        ? `<div class="menu-card-img-wrap" onclick="openLightboxFromMenu(event, '${item.image}', '${cleanName.replace(/'/g,"\'")}', ${Number(item.price)})">
+                               <img class="menu-card-img" src="${item.image}" alt="${cleanName}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                               <div class="menu-card-img-placeholder" style="display:none;">🍽</div>
+                           </div>`
                         : `<div class="menu-card-img-placeholder">🍽</div>`;
                     div.innerHTML = `${imgHtml}<div class="menu-card-body"><div class="menu-card-name">${cleanName}</div><div class="menu-card-price">${Number(item.price).toLocaleString()}원</div></div>`;
                 } else {
@@ -1849,7 +1936,7 @@
         // [v2.1] 탭 타이틀 깜빡임 시작
         function startTabFlash() {
             if(tabFlashInterval) return; // 이미 실행 중이면 중복 방지
-            const originalTitle = 'Lunch Pro v3.0';
+            const originalTitle = 'Lunch Pro v3.1';
             let isFlash = false;
             tabFlashInterval = setInterval(() => {
                 isFlash = !isFlash;
@@ -1863,7 +1950,7 @@
                 clearInterval(tabFlashInterval);
                 tabFlashInterval = null;
             }
-            document.title = 'Lunch Pro v3.0';
+            document.title = 'Lunch Pro v3.1';
         }
 
         // [v13.14] 투표 결과 발표 오버레이
@@ -2032,6 +2119,81 @@
                     setTimeout(() => el.remove(), 4000);
                 }, i * 25);
             }
+        }
+
+        // [v3.1] 라이트박스
+        let lbImages = []; // { src, name, price }
+        let lbIndex  = 0;
+
+        function openLightbox(images, idx) {
+            lbImages = images.filter(i => i.src); // 사진 있는 것만
+            lbIndex  = Math.max(0, Math.min(idx, lbImages.length - 1));
+            if(!lbImages.length) return;
+            renderLightbox();
+            document.getElementById('lightboxOverlay').classList.add('show');
+            // ESC / 화살표 키 바인딩
+            document.addEventListener('keydown', lightboxKeyHandler);
+        }
+
+        function renderLightbox() {
+            const item = lbImages[lbIndex];
+            document.getElementById('lightboxImg').src    = item.src;
+            document.getElementById('lightboxName').innerText  = item.name;
+            document.getElementById('lightboxPrice').innerText = item.price > 0 ? Number(item.price).toLocaleString() + '원' : '';
+            document.getElementById('lightboxCounter').innerText = lbImages.length > 1 ? `${lbIndex + 1} / ${lbImages.length}` : '';
+            document.getElementById('lbPrev').classList.toggle('hidden', lbIndex === 0);
+            document.getElementById('lbNext').classList.toggle('hidden', lbIndex === lbImages.length - 1);
+        }
+
+        function lightboxNav(dir) {
+            lbIndex = Math.max(0, Math.min(lbIndex + dir, lbImages.length - 1));
+            renderLightbox();
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightboxOverlay').classList.remove('show');
+            document.removeEventListener('keydown', lightboxKeyHandler);
+        }
+
+        function closeLightboxOnBg(e) {
+            if(e.target === document.getElementById('lightboxOverlay')) closeLightbox();
+        }
+
+        function lightboxKeyHandler(e) {
+            if(e.key === 'Escape')     closeLightbox();
+            if(e.key === 'ArrowRight') lightboxNav(1);
+            if(e.key === 'ArrowLeft')  lightboxNav(-1);
+        }
+
+        // 메뉴 카드 (선택화면)에서 열기 - 같은 식당 메뉴 전체를 넘겨볼 수 있게
+        function openLightboxFromMenu(e, src, name, price) {
+            e.stopPropagation(); // 카드 클릭(메뉴 선택) 이벤트 차단
+            // 현재 보이는 메뉴 카드 전체 수집
+            const cards = [...document.querySelectorAll('#menuGrid .menu-card')];
+            const images = cards.map(card => {
+                const img = card.querySelector('.menu-card-img');
+                const nameEl = card.querySelector('.menu-card-name');
+                const priceEl = card.querySelector('.menu-card-price');
+                return {
+                    src: img ? img.src : '',
+                    name: nameEl ? nameEl.innerText : '',
+                    price: priceEl ? Number(priceEl.innerText.replace(/[^0-9]/g,'')) : 0
+                };
+            });
+            // 클릭한 이미지 인덱스 찾기
+            const clickedIdx = images.findIndex(i => i.src === src);
+            openLightbox(images, clickedIdx >= 0 ? clickedIdx : 0);
+        }
+
+        // 바텀시트에서 열기
+        function openLightboxFromBS(e, menus, idx) {
+            e.stopPropagation();
+            const images = (menus || []).filter(m => m.image).map(m => ({
+                src: m.image,
+                name: String(m.name).replace(/\(곱빼기 가능:.*\)/g,'').trim(),
+                price: m.price
+            }));
+            openLightbox(images, Math.max(0, idx));
         }
 
         function sendVote() {
