@@ -757,10 +757,12 @@
             if(!details || details.isWalkIn || !details.menus || details.menus.length === 0) {
                 menuList.innerHTML = `<div class="bottomsheet-walkin-notice">🏪 현장에서 직접 주문하는 식당입니다</div>`;
             } else {
-                menuList.innerHTML = details.menus.map(m => {
+                // [v3.1 fix] 메뉴 이미지 라이트박스용 전역 저장
+                window._bsCurrentMenus = details.menus;
+                menuList.innerHTML = details.menus.map((m, mIdx) => {
                     const cleanName = String(m.name).replace(/\(곱빼기 가능:.*\)/g,'').trim();
                     const imgHtml = m.image
-                        ? `<div class="bs-img-wrap" onclick="openLightboxFromBS(event, details.menus, ${`details.menus.indexOf(m)`})">
+                        ? `<div class="bs-img-wrap" onclick="openLightboxFromBS(event, ${mIdx})">
                                <img class="bs-menu-img" src="${m.image}" alt="${cleanName}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
                                <div class="bs-menu-img-placeholder" style="display:none;">🍽</div>
                            </div>`
@@ -2186,14 +2188,24 @@
         }
 
         // 바텀시트에서 열기
-        function openLightboxFromBS(e, menus, idx) {
+        function openLightboxFromBS(e, idx) {
             e.stopPropagation();
-            const images = (menus || []).filter(m => m.image).map(m => ({
+            const menus = window._bsCurrentMenus || [];
+            const images = menus.filter(m => m.image).map(m => ({
                 src: m.image,
                 name: String(m.name).replace(/\(곱빼기 가능:.*\)/g,'').trim(),
                 price: m.price
             }));
-            openLightbox(images, Math.max(0, idx));
+            // 클릭한 메뉴(idx)가 사진 있는 항목들 중 몇 번째인지 계산
+            let imgIdx = 0;
+            let count = 0;
+            for(let i = 0; i < menus.length; i++) {
+                if(menus[i].image) {
+                    if(i === idx) { imgIdx = count; break; }
+                    count++;
+                }
+            }
+            openLightbox(images, imgIdx);
         }
 
         function sendVote() {
