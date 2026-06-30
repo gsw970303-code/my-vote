@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.4</title>
+    <title>Lunch Pro v3.5</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -221,7 +221,7 @@
         .sidepanel-overlay.show { opacity: 1; pointer-events: auto; }
         .sidepanel {
             position: fixed; top: 0; right: 0;
-            width: 380px; height: 100vh;
+            width: 420px; height: 100vh;
             background: var(--card);
             border-left: 1px solid #475569;
             transform: translateX(100%);
@@ -272,6 +272,13 @@
         .res-card-preview { font-size: 12px; color: #64748b; line-height: 1.6; }
         .res-card-price { font-size: 11px; color: #475569; margin-top: 4px; }
         .res-card-voted-badge { position: absolute; top: 10px; right: 10px; background: var(--primary); color: #0f172a; font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 8px; }
+        /* [v3.5] 식당 카테고리 섹션 */
+        .res-category-section { margin-bottom: 22px; }
+        .res-category-title { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #94a3b8; font-weight: bold; margin-bottom: 10px; padding-left: 2px; }
+        .res-category-title .cat-emoji { font-size: 15px; }
+        .res-category-title .cat-count { color: #475569; font-weight: normal; font-size: 11px; }
+        .res-category-divider { flex: 1; height: 1px; background: #1e293b; }
+
         /* 호환성: bottomsheet 클래스 별칭 유지 */
         .bottomsheet-menu-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-bottom: 1px solid #1e293b; font-size: 13px; gap: 16px; }
         .bottomsheet-menu-item:last-child { border-bottom: none; }
@@ -520,7 +527,7 @@
                 <div class="rule-text">📢 식당은 과반수로 정해지게 됩니다<br>(미투표 시 투표인원들 중 과반수로 가게 됨)</div>
                 <div class="progress-container"><div id="voteProgress" class="progress-bar"></div></div>
                 <p id="voteCountText" style="font-size:12px; color:var(--primary); margin-top:5px;"></p>
-                <div class="grid" id="resGrid"></div>
+                <div id="resGrid"></div>
             </div>
         </div>
 
@@ -673,7 +680,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbwZ_Wf6DSK6wEl-YA2WbMx-Gdtk5klRVJulVyyW1kYu1Oj01PxlmtAAYZNvl5nlOxxqJA/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbz2DxkNPlHyrk8Xlxq_5PEMQmo51logWP8HZrpFArkmGlW5XdHIeW-0pcEWNKzvqWvLlA/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -737,37 +744,71 @@
         }
 
         // [v13.11] 식당 미리보기 바텀시트 렌더
+        // [v3.5] 카테고리별 이모지 매핑
+        const CATEGORY_EMOJI = {
+            '한식': '🍚', '중식': '🥢', '일식': '🍣', '양식': '🍝',
+            '분식': '🍢', '카페': '☕', '치킨': '🍗', '피자': '🍕',
+            '족발/보쌈': '🐷', '고기': '🥩', '디저트': '🍰', '기타': '🍽'
+        };
+
         function renderResGrid() {
             const container = document.getElementById('resGrid');
             container.innerHTML = '';
+
+            // 카테고리별 그룹핑
+            const grouped = {};
+            const order = []; // 등장 순서 유지
             (state.restaurants || []).forEach(resName => {
-                const div = document.createElement('div');
-                div.className = 'res-card';
-                const alreadyVoted = selected.res === resName;
-                if(alreadyVoted) div.classList.add('active');
-
-                // 대표 메뉴 2~3개 미리보기
                 const details = state.restaurantDetails && state.restaurantDetails[resName];
-                let previewHtml = '';
-                if(details && details.isWalkIn) {
-                    previewHtml = '<div class="res-card-preview">🏪 현장주문 식당</div>';
-                } else if(details && details.menus && details.menus.length > 0) {
-                    const previewMenus = details.menus.slice(0, 3).map(m =>
-                        m.name.replace(/\(곱빼기 가능:.*\)/g,'').trim()
-                    ).join(' · ');
-                    const minPrice = Math.min(...details.menus.map(m => Number(m.price) || 0));
-                    previewHtml = `<div class="res-card-preview">${previewMenus}</div>
-                                   <div class="res-card-price">${minPrice.toLocaleString()}원~</div>`;
-                }
+                const cat = (details && details.category) || '기타';
+                if(!grouped[cat]) { grouped[cat] = []; order.push(cat); }
+                grouped[cat].push(resName);
+            });
 
-                const votedBadge = alreadyVoted ? '<span class="res-card-voted-badge">✓ 투표</span>' : '';
+            order.forEach(cat => {
+                const section = document.createElement('div');
+                section.className = 'res-category-section';
+                const emoji = CATEGORY_EMOJI[cat] || '🍽';
+                section.innerHTML = `
+                    <div class="res-category-title">
+                        <span class="cat-emoji">${emoji}</span>
+                        <span>${cat}</span>
+                        <span class="cat-count">${grouped[cat].length}곳</span>
+                        <span class="res-category-divider"></span>
+                    </div>
+                    <div class="grid" style="margin-top:0;"></div>`;
+                const grid = section.querySelector('.grid');
 
-                div.innerHTML = `
-                    ${votedBadge}
-                    <div class="res-card-name">${resName}</div>
-                    ${previewHtml}`;
-                div.onclick = () => openResBottomSheet(resName);
-                container.appendChild(div);
+                grouped[cat].forEach(resName => {
+                    const div = document.createElement('div');
+                    div.className = 'res-card';
+                    const alreadyVoted = selected.res === resName;
+                    if(alreadyVoted) div.classList.add('active');
+
+                    const details = state.restaurantDetails && state.restaurantDetails[resName];
+                    let previewHtml = '';
+                    if(details && details.isWalkIn) {
+                        previewHtml = '<div class="res-card-preview">🏪 현장주문 식당</div>';
+                    } else if(details && details.menus && details.menus.length > 0) {
+                        const previewMenus = details.menus.slice(0, 3).map(m =>
+                            m.name.replace(/\(곱빼기 가능:.*\)/g,'').trim()
+                        ).join(' · ');
+                        const minPrice = Math.min(...details.menus.map(m => Number(m.price) || 0));
+                        previewHtml = `<div class="res-card-preview">${previewMenus}</div>
+                                       <div class="res-card-price">${minPrice.toLocaleString()}원~</div>`;
+                    }
+
+                    const votedBadge = alreadyVoted ? '<span class="res-card-voted-badge">✓ 투표</span>' : '';
+
+                    div.innerHTML = `
+                        ${votedBadge}
+                        <div class="res-card-name">${resName}</div>
+                        ${previewHtml}`;
+                    div.onclick = () => openResBottomSheet(resName);
+                    grid.appendChild(div);
+                });
+
+                container.appendChild(section);
             });
         }
 
@@ -1998,7 +2039,7 @@
         // [v2.1] 탭 타이틀 깜빡임 시작
         function startTabFlash() {
             if(tabFlashInterval) return; // 이미 실행 중이면 중복 방지
-            const originalTitle = 'Lunch Pro v3.4';
+            const originalTitle = 'Lunch Pro v3.5';
             let isFlash = false;
             tabFlashInterval = setInterval(() => {
                 isFlash = !isFlash;
@@ -2012,7 +2053,7 @@
                 clearInterval(tabFlashInterval);
                 tabFlashInterval = null;
             }
-            document.title = 'Lunch Pro v3.4';
+            document.title = 'Lunch Pro v3.5';
         }
 
         // [v13.14] 투표 결과 발표 오버레이
