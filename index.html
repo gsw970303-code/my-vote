@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.5</title>
+    <title>Lunch Pro v3.6</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -2039,7 +2039,7 @@
         // [v2.1] 탭 타이틀 깜빡임 시작
         function startTabFlash() {
             if(tabFlashInterval) return; // 이미 실행 중이면 중복 방지
-            const originalTitle = 'Lunch Pro v3.5';
+            const originalTitle = 'Lunch Pro v3.6';
             let isFlash = false;
             tabFlashInterval = setInterval(() => {
                 isFlash = !isFlash;
@@ -2053,7 +2053,7 @@
                 clearInterval(tabFlashInterval);
                 tabFlashInterval = null;
             }
-            document.title = 'Lunch Pro v3.5';
+            document.title = 'Lunch Pro v3.6';
         }
 
         // [v13.14] 투표 결과 발표 오버레이
@@ -2084,9 +2084,11 @@
             barsEl.innerHTML = entries.map(([res, cnt]) => {
                 const isWinner  = res === state.winner;
                 const isTieCand = isTie && tiedCandidates.includes(res);
-                const barClass  = isWinner ? 'winner-bar' : isTieCand ? 'tie-bar' : 'other-bar';
+                // [v3.6] 동률 시 winner 포함 모든 동률 후보를 처음엔 빨간 tie-bar로 시작
+                const barClass  = isTieCand ? 'tie-bar' : (isWinner ? 'winner-bar' : 'other-bar');
                 const pct = Math.round(cnt / maxVotes * 100);
-                const tieBadge = isTieCand && !isWinner ? '<span class="tie-badge">동률</span>' : '';
+                // [v3.6] 동률 배지: 모든 동률 후보에 표시 (winner 포함)
+                const tieBadge = isTieCand ? '<span class="tie-badge">동률</span>' : '';
                 return `<div class="result-bar-row">
                     <div class="result-bar-label">
                         <span class="result-bar-name" id="barlabel_${res.replace(/[^a-zA-Z0-9]/g,'_')}">
@@ -2159,8 +2161,21 @@
                                 // winner 바만 초록으로 교체
                                 const winBar = document.getElementById('bar_' + state.winner.replace(/[^a-zA-Z0-9]/g,'_'));
                                 if(winBar) { winBar.classList.remove('tie-bar'); winBar.classList.add('winner-bar'); }
+                                // [v3.6] winner 라벨: 자리 유지하면서 🏆 추가 + 동률 배지 제거
                                 const winLbl = document.getElementById('barlabel_' + state.winner.replace(/[^a-zA-Z0-9]/g,'_'));
-                                if(winLbl) winLbl.innerHTML = '🏆 ' + state.winner;
+                                if(winLbl) {
+                                    winLbl.innerHTML = '🏆 ' + state.winner;
+                                    // 다른 동률 후보들 배지만 제거 (자리 유지)
+                                    tiedCandidates.forEach(r => {
+                                        if(r !== state.winner) {
+                                            const lbl = document.getElementById('barlabel_' + r.replace(/[^a-zA-Z0-9]/g,'_'));
+                                            if(lbl) {
+                                                const badge = lbl.querySelector('.tie-badge');
+                                                if(badge) badge.remove();
+                                            }
+                                        }
+                                    });
+                                }
                                 setTimeout(() => { launchConfetti(true); continueBtn.classList.add('show'); }, 500);
                             }, 400);
                         }
@@ -2432,6 +2447,12 @@
         function reOrder() {
             localStorage.removeItem(todayKey);
             localStorage.removeItem(todayKey + '_order');
+            // [v3.6] 확정 버튼 상태 완전 원복 (제출 중 로딩 해제)
+            const confirmBtn = document.querySelector('.order-popup-confirm');
+            if(confirmBtn) {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '✅ 주문 확정';
+            }
             setFormDisabled(false);
             updateState();
         }
