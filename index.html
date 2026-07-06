@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.6</title>
+    <title>Lunch Pro v3.7</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -680,7 +680,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbz2DxkNPlHyrk8Xlxq_5PEMQmo51logWP8HZrpFArkmGlW5XdHIeW-0pcEWNKzvqWvLlA/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbx__NEKILEhmK5faoUAeXjjdvYSdLUhQ0FAyBRJQSOx_QN5eg9t5ZJ8ek7M2_6lPAbPTA/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -1008,7 +1008,8 @@
                 
                 // 💡 [v13.1] winner가 바뀌면(재투표/초기화 후) 그리드 강제 재렌더
                 const currentWinner = document.getElementById('userGrid').dataset.winner;
-                const needsRender = !document.getElementById('userGrid').children.length || currentWinner !== state.winner;
+                // [v3.7] winner 바뀌거나 메뉴 그리드 비었을 때만 재렌더 (이미지 깜빡임 방지)
+                const needsRender = !document.getElementById('menuGrid').children.length || currentWinner !== state.winner;
                 
                 const isOrdered = localStorage.getItem(todayKey);
                 if(needsRender) {
@@ -2039,7 +2040,7 @@
         // [v2.1] 탭 타이틀 깜빡임 시작
         function startTabFlash() {
             if(tabFlashInterval) return; // 이미 실행 중이면 중복 방지
-            const originalTitle = 'Lunch Pro v3.6';
+            const originalTitle = 'Lunch Pro v3.7';
             let isFlash = false;
             tabFlashInterval = setInterval(() => {
                 isFlash = !isFlash;
@@ -2053,7 +2054,7 @@
                 clearInterval(tabFlashInterval);
                 tabFlashInterval = null;
             }
-            document.title = 'Lunch Pro v3.6';
+            document.title = 'Lunch Pro v3.7';
         }
 
         // [v13.14] 투표 결과 발표 오버레이
@@ -2113,10 +2114,13 @@
                 winnerEl.style.color = '#f43f5e';
                 winnerEl.style.fontSize = '22px';
 
-                // 바 채우기
+                // [v3.7] 바 채우기: 동률 후보는 모두 동일한 pct (maxVotes 기준 100%)
+                // 비동률 후보는 상대적 pct 로 채움
                 setTimeout(() => {
-                    entries.forEach(([res]) => {
-                        const pct = Math.round(state.voteCounts[res] / maxVotes * 100);
+                    entries.forEach(([res, cnt]) => {
+                        const isTieCandBar = tiedCandidates.includes(res);
+                        // 동률 후보끼리는 무조건 같은 비율이어야 하므로 maxVotes 그대로
+                        const pct = Math.round(cnt / maxVotes * 100);
                         const el = document.getElementById('bar_' + res.replace(/[^a-zA-Z0-9]/g,'_'));
                         if(el) el.style.width = pct + '%';
                     });
