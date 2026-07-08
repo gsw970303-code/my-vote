@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.7</title>
+    <title>Lunch Pro v3.8</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -2040,7 +2040,7 @@
         // [v2.1] 탭 타이틀 깜빡임 시작
         function startTabFlash() {
             if(tabFlashInterval) return; // 이미 실행 중이면 중복 방지
-            const originalTitle = 'Lunch Pro v3.7';
+            const originalTitle = 'Lunch Pro v3.8';
             let isFlash = false;
             tabFlashInterval = setInterval(() => {
                 isFlash = !isFlash;
@@ -2054,7 +2054,7 @@
                 clearInterval(tabFlashInterval);
                 tabFlashInterval = null;
             }
-            document.title = 'Lunch Pro v3.7';
+            document.title = 'Lunch Pro v3.8';
         }
 
         // [v13.14] 투표 결과 발표 오버레이
@@ -2087,8 +2087,8 @@
                 const isTieCand = isTie && tiedCandidates.includes(res);
                 // [v3.6] 동률 시 winner 포함 모든 동률 후보를 처음엔 빨간 tie-bar로 시작
                 const barClass  = isTieCand ? 'tie-bar' : (isWinner ? 'winner-bar' : 'other-bar');
-                const pct = Math.round(cnt / maxVotes * 100);
-                // [v3.6] 동률 배지: 모든 동률 후보에 표시 (winner 포함)
+                // [v3.8] 바 길이: totalVotes 기준 실제 득표 비율 (3표 vs 1표가 시각적으로 구분됨)
+                const pct = Math.round(cnt / totalVotes * 100);
                 const tieBadge = isTieCand ? '<span class="tie-badge">동률</span>' : '';
                 return `<div class="result-bar-row">
                     <div class="result-bar-label">
@@ -2118,9 +2118,8 @@
                 // 비동률 후보는 상대적 pct 로 채움
                 setTimeout(() => {
                     entries.forEach(([res, cnt]) => {
-                        const isTieCandBar = tiedCandidates.includes(res);
-                        // 동률 후보끼리는 무조건 같은 비율이어야 하므로 maxVotes 그대로
-                        const pct = Math.round(cnt / maxVotes * 100);
+                        // [v3.8] totalVotes 기준으로 통일
+                        const pct = Math.round(cnt / totalVotes * 100);
                         const el = document.getElementById('bar_' + res.replace(/[^a-zA-Z0-9]/g,'_'));
                         if(el) el.style.width = pct + '%';
                     });
@@ -2193,8 +2192,9 @@
                 winnerBox.querySelector('div').innerText = '오늘의 식당';
 
                 setTimeout(() => {
-                    entries.forEach(([res]) => {
-                        const pct = Math.round(state.voteCounts[res] / maxVotes * 100);
+                    entries.forEach(([res, cnt]) => {
+                        // [v3.8] totalVotes 기준
+                        const pct = Math.round(cnt / totalVotes * 100);
                         const el = document.getElementById('bar_' + res.replace(/[^a-zA-Z0-9]/g,'_'));
                         if(el) el.style.width = pct + '%';
                     });
@@ -2302,20 +2302,17 @@
 
         // 메뉴 카드 (선택화면)에서 열기 - 같은 식당 메뉴 전체를 넘겨볼 수 있게
         function openLightboxFromMenu(e, src, name, price) {
-            e.stopPropagation(); // 카드 클릭(메뉴 선택) 이벤트 차단
-            // 현재 보이는 메뉴 카드 전체 수집
-            const cards = [...document.querySelectorAll('#menuGrid .menu-card')];
-            const images = cards.map(card => {
-                const img = card.querySelector('.menu-card-img');
-                const nameEl = card.querySelector('.menu-card-name');
-                const priceEl = card.querySelector('.menu-card-price');
-                return {
-                    src: img ? img.src : '',
-                    name: nameEl ? nameEl.innerText : '',
-                    price: priceEl ? Number(priceEl.innerText.replace(/[^0-9]/g,'')) : 0
-                };
-            });
-            // 클릭한 이미지 인덱스 찾기
+            e.stopPropagation();
+            // [v3.8] DOM img.src 대신 state.menus 직접 사용 (브라우저 URL 변환 문제 방지)
+            const menus = state.menus || [];
+            const images = menus
+                .filter(m => m.image)
+                .map(m => ({
+                    src: m.image,
+                    name: m.name.replace(/\(곱빼기 가능:.*\)/g,'').trim(),
+                    price: m.price
+                }));
+            // 클릭한 메뉴 src로 인덱스 찾기 (원본 URL 그대로 비교)
             const clickedIdx = images.findIndex(i => i.src === src);
             openLightbox(images, clickedIdx >= 0 ? clickedIdx : 0);
         }
