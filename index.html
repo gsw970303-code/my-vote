@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.8</title>
+    <title>Lunch Pro v3.9</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -522,8 +522,8 @@
                 <button class="btn-extend" onclick="extendVoteTime()">⏱ 투표 시간 30초 연장</button>
             </div>
             <div class="card">
-                <h2>🍴 식당 투표 (5분 마감)</h2>
-                <div class="timer" id="voteTimer">05:00</div>
+                <h2>🍴 식당 투표 (2분 마감)</h2>
+                <div class="timer" id="voteTimer">02:00</div>
                 <div class="rule-text">📢 식당은 과반수로 정해지게 됩니다<br>(미투표 시 투표인원들 중 과반수로 가게 됨)</div>
                 <div class="progress-container"><div id="voteProgress" class="progress-bar"></div></div>
                 <p id="voteCountText" style="font-size:12px; color:var(--primary); margin-top:5px;"></p>
@@ -2040,7 +2040,7 @@
         // [v2.1] 탭 타이틀 깜빡임 시작
         function startTabFlash() {
             if(tabFlashInterval) return; // 이미 실행 중이면 중복 방지
-            const originalTitle = 'Lunch Pro v3.8';
+            const originalTitle = 'Lunch Pro v3.9';
             let isFlash = false;
             tabFlashInterval = setInterval(() => {
                 isFlash = !isFlash;
@@ -2054,7 +2054,7 @@
                 clearInterval(tabFlashInterval);
                 tabFlashInterval = null;
             }
-            document.title = 'Lunch Pro v3.8';
+            document.title = 'Lunch Pro v3.9';
         }
 
         // [v13.14] 투표 결과 발표 오버레이
@@ -2081,25 +2081,23 @@
             const tiedCandidates = entries.filter(([,cnt]) => cnt === maxVotes).map(([r]) => r);
             const isTie = tiedCandidates.length > 1;
 
-            // 바 차트 HTML
-            barsEl.innerHTML = entries.map(([res, cnt]) => {
+            // [v3.9] 바 차트 HTML - 인덱스 기반 ID (한글 식당명 충돌 완전 방지)
+            barsEl.innerHTML = entries.map(([res, cnt], idx) => {
                 const isWinner  = res === state.winner;
                 const isTieCand = isTie && tiedCandidates.includes(res);
-                // [v3.6] 동률 시 winner 포함 모든 동률 후보를 처음엔 빨간 tie-bar로 시작
                 const barClass  = isTieCand ? 'tie-bar' : (isWinner ? 'winner-bar' : 'other-bar');
-                // [v3.8] 바 길이: totalVotes 기준 실제 득표 비율 (3표 vs 1표가 시각적으로 구분됨)
                 const pct = Math.round(cnt / totalVotes * 100);
                 const tieBadge = isTieCand ? '<span class="tie-badge">동률</span>' : '';
                 return `<div class="result-bar-row">
                     <div class="result-bar-label">
-                        <span class="result-bar-name" id="barlabel_${res.replace(/[^a-zA-Z0-9]/g,'_')}">
+                        <span class="result-bar-name" id="barlabel_${idx}">
                             ${isWinner ? '🏆 ' : ''}${res}${tieBadge}
                         </span>
-                        <span class="result-bar-count">${cnt}표 (${Math.round(cnt/totalVotes*100)}%)</span>
+                        <span class="result-bar-count">${cnt}표 (${pct}%)</span>
                     </div>
                     <div class="result-bar-track">
                         <div class="result-bar-fill ${barClass}"
-                             id="bar_${res.replace(/[^a-zA-Z0-9]/g,'_')}" style="width:0%"></div>
+                             id="bar_${idx}" style="width:0%"></div>
                     </div>
                 </div>`;
             }).join('');
@@ -2117,16 +2115,18 @@
                 // [v3.7] 바 채우기: 동률 후보는 모두 동일한 pct (maxVotes 기준 100%)
                 // 비동률 후보는 상대적 pct 로 채움
                 setTimeout(() => {
-                    entries.forEach(([res, cnt]) => {
-                        // [v3.8] totalVotes 기준으로 통일
+                    // [v3.9] 인덱스 기반으로 바 채우기
+                    entries.forEach(([res, cnt], idx) => {
                         const pct = Math.round(cnt / totalVotes * 100);
-                        const el = document.getElementById('bar_' + res.replace(/[^a-zA-Z0-9]/g,'_'));
+                        const el = document.getElementById('bar_' + idx);
                         if(el) el.style.width = pct + '%';
                     });
-                    // 동률 후보 라벨 깜빡임
-                    tiedCandidates.forEach(res => {
-                        const lbl = document.getElementById('barlabel_' + res.replace(/[^a-zA-Z0-9]/g,'_'));
-                        if(lbl) lbl.classList.add('tie-candidate');
+                    // 동률 후보 라벨 깜빡임 (인덱스 기반)
+                    entries.forEach(([res], idx) => {
+                        if(tiedCandidates.includes(res)) {
+                            const lbl = document.getElementById('barlabel_' + idx);
+                            if(lbl) lbl.classList.add('tie-candidate');
+                        }
                     });
                 }, 300);
 
@@ -2146,10 +2146,12 @@
                         // 점점 느려지게
                         if(count >= totalSpins) {
                             clearInterval(rouletteInterval);
-                            // 동률 후보 깜빡임 제거
-                            tiedCandidates.forEach(res => {
-                                const lbl = document.getElementById('barlabel_' + res.replace(/[^a-zA-Z0-9]/g,'_'));
-                                if(lbl) lbl.classList.remove('tie-candidate');
+                            // [v3.9] 동률 후보 깜빡임 제거 (인덱스 기반)
+                            entries.forEach(([res], idx) => {
+                                if(tiedCandidates.includes(res)) {
+                                    const lbl = document.getElementById('barlabel_' + idx);
+                                    if(lbl) lbl.classList.remove('tie-candidate');
+                                }
                             });
                             // 최종 winner 등장
                             setTimeout(() => {
@@ -2162,23 +2164,22 @@
                                 winnerEl.innerText = state.winner;
                                 winnerEl.classList.add('winner-pulse');
                                 // winner 바만 초록으로 교체
-                                const winBar = document.getElementById('bar_' + state.winner.replace(/[^a-zA-Z0-9]/g,'_'));
-                                if(winBar) { winBar.classList.remove('tie-bar'); winBar.classList.add('winner-bar'); }
-                                // [v3.6] winner 라벨: 자리 유지하면서 🏆 추가 + 동률 배지 제거
-                                const winLbl = document.getElementById('barlabel_' + state.winner.replace(/[^a-zA-Z0-9]/g,'_'));
-                                if(winLbl) {
-                                    winLbl.innerHTML = '🏆 ' + state.winner;
-                                    // 다른 동률 후보들 배지만 제거 (자리 유지)
-                                    tiedCandidates.forEach(r => {
-                                        if(r !== state.winner) {
-                                            const lbl = document.getElementById('barlabel_' + r.replace(/[^a-zA-Z0-9]/g,'_'));
-                                            if(lbl) {
-                                                const badge = lbl.querySelector('.tie-badge');
-                                                if(badge) badge.remove();
-                                            }
+                                // [v3.9] 인덱스로 winner/동률 후보 바·라벨 업데이트
+                                entries.forEach(([res], idx) => {
+                                    const bar = document.getElementById('bar_' + idx);
+                                    const lbl = document.getElementById('barlabel_' + idx);
+                                    if(res === state.winner) {
+                                        if(bar) { bar.classList.remove('tie-bar'); bar.classList.add('winner-bar'); }
+                                        if(lbl) lbl.innerHTML = '🏆 ' + res;
+                                    } else if(tiedCandidates.includes(res)) {
+                                        // 동률이었지만 낙선 → 배지 제거, 바 회색으로
+                                        if(bar) { bar.classList.remove('tie-bar'); bar.classList.add('other-bar'); }
+                                        if(lbl) {
+                                            const badge = lbl.querySelector('.tie-badge');
+                                            if(badge) badge.remove();
                                         }
-                                    });
-                                }
+                                    }
+                                });
                                 setTimeout(() => { launchConfetti(true); continueBtn.classList.add('show'); }, 500);
                             }, 400);
                         }
@@ -2192,10 +2193,9 @@
                 winnerBox.querySelector('div').innerText = '오늘의 식당';
 
                 setTimeout(() => {
-                    entries.forEach(([res, cnt]) => {
-                        // [v3.8] totalVotes 기준
+                    entries.forEach(([res, cnt], idx) => {
                         const pct = Math.round(cnt / totalVotes * 100);
-                        const el = document.getElementById('bar_' + res.replace(/[^a-zA-Z0-9]/g,'_'));
+                        const el = document.getElementById('bar_' + idx);
                         if(el) el.style.width = pct + '%';
                     });
                 }, 300);
