@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v3.9</title>
+    <title>Lunch Pro v4.0</title>
     <style>
         :root { --primary: #00ff88; --bg: #0f172a; --card: #1e293b; --accent: #f43f5e; }
         body { font-family: 'Pretendard', sans-serif; background: var(--bg); color: white; margin: 0; text-align: center; }
@@ -272,6 +272,14 @@
         .res-card-preview { font-size: 12px; color: #64748b; line-height: 1.6; }
         .res-card-price { font-size: 11px; color: #475569; margin-top: 4px; }
         .res-card-voted-badge { position: absolute; top: 10px; right: 10px; background: var(--primary); color: #0f172a; font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 8px; }
+        /* [v4.0] 일일 메뉴 배지 */
+        .daily-menu-badge { display: inline-block; background: rgba(251,165,26,0.15); border: 1px solid #fba51a; color: #fba51a; font-size: 10px; font-weight: bold; padding: 2px 7px; border-radius: 6px; margin-left: 6px; vertical-align: middle; }
+        .res-card.daily-menu { border-color: rgba(251,165,26,0.4); }
+        .res-card.daily-menu .res-card-name { color: #fba51a; }
+        .res-card.daily-menu:hover { border-color: #fba51a; }
+        .res-card.daily-menu.active { border-color: #fba51a; background: rgba(251,165,26,0.08); }
+        .sidepanel-daily-notice { font-size: 12px; color: #fba51a; background: rgba(251,165,26,0.08); border: 1px dashed rgba(251,165,26,0.4); border-radius: 8px; padding: 8px 12px; margin: 0 20px 4px; text-align: center; }
+
         /* [v3.5] 식당 카테고리 섹션 */
         .res-category-section { margin-bottom: 22px; }
         .res-category-title { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #94a3b8; font-weight: bold; margin-bottom: 10px; padding-left: 2px; }
@@ -494,6 +502,7 @@
                 </div>
             </div>
             <div class="sidepanel-body">
+                <div id="bsDailyNotice" class="sidepanel-daily-notice hidden">📅 오늘의 메뉴입니다</div>
                 <div class="sidepanel-menu-title">MENU</div>
                 <div id="bsMenuList"></div>
             </div>
@@ -522,8 +531,8 @@
                 <button class="btn-extend" onclick="extendVoteTime()">⏱ 투표 시간 30초 연장</button>
             </div>
             <div class="card">
-                <h2>🍴 식당 투표 (5분 마감)</h2>
-                <div class="timer" id="voteTimer">05:00</div>
+                <h2>🍴 식당 투표 (2분 마감)</h2>
+                <div class="timer" id="voteTimer">02:00</div>
                 <div class="rule-text">📢 식당은 과반수로 정해지게 됩니다<br>(미투표 시 투표인원들 중 과반수로 가게 됨)</div>
                 <div class="progress-container"><div id="voteProgress" class="progress-bar"></div></div>
                 <p id="voteCountText" style="font-size:12px; color:var(--primary); margin-top:5px;"></p>
@@ -680,7 +689,7 @@
     </div>
 
     <script>
-        const GAS_URL = "https://script.google.com/macros/s/AKfycbyZ7BRuMgi1jvjjAc35a7nbRguSnyykbfhyXgm8Evaz-uJMNuAhUhIJSWKyyPohGvZLgw/exec";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbzS6PomsUqC3WVLocJbp5HAjhz9W-6T-90hqSlQbFWoTUCnyE3tvbKiaIV59QlmwZgBtQ/exec";
         const isAdmin = new URLSearchParams(window.location.search).get('admin') === 'true';
         if(!localStorage.getItem('deviceId')) localStorage.setItem('deviceId', 'id_' + Math.random().toString(36).substr(2, 9));
         const deviceId = localStorage.getItem('deviceId');
@@ -799,10 +808,14 @@
                     }
 
                     const votedBadge = alreadyVoted ? '<span class="res-card-voted-badge">✓ 투표</span>' : '';
+                    // [v4.0] 일일 메뉴 식당 표시
+                    const isDailyMenu = details && details.isDailyMenu;
+                    if(isDailyMenu) div.classList.add('daily-menu');
+                    const dailyBadge = isDailyMenu ? '<span class="daily-menu-badge">오늘메뉴</span>' : '';
 
                     div.innerHTML = `
                         ${votedBadge}
-                        <div class="res-card-name">${resName}</div>
+                        <div class="res-card-name">${resName}${dailyBadge}</div>
                         ${previewHtml}`;
                     div.onclick = () => openResBottomSheet(resName);
                     grid.appendChild(div);
@@ -850,6 +863,13 @@
                 document.getElementById('bsPhone').style.display = 'flex';
             } else {
                 document.getElementById('bsPhone').style.display = 'none';
+            }
+            // [v4.0] 일일 메뉴 안내 표시
+            const dailyNotice = document.getElementById('bsDailyNotice');
+            if(details && details.isDailyMenu) {
+                dailyNotice.classList.remove('hidden');
+            } else {
+                dailyNotice.classList.add('hidden');
             }
             // 메뉴 목록 (사진 포함)
             const menuList = document.getElementById('bsMenuList');
@@ -2040,7 +2060,7 @@
         // [v2.1] 탭 타이틀 깜빡임 시작
         function startTabFlash() {
             if(tabFlashInterval) return; // 이미 실행 중이면 중복 방지
-            const originalTitle = 'Lunch Pro v3.9';
+            const originalTitle = 'Lunch Pro v4.0';
             let isFlash = false;
             tabFlashInterval = setInterval(() => {
                 isFlash = !isFlash;
@@ -2054,7 +2074,7 @@
                 clearInterval(tabFlashInterval);
                 tabFlashInterval = null;
             }
-            document.title = 'Lunch Pro v3.9';
+            document.title = 'Lunch Pro v4.0';
         }
 
         // [v13.14] 투표 결과 발표 오버레이
