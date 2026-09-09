@@ -3,65 +3,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lunch Pro v5.0</title>
+    <title>🍽 Lunch Pro</title>
     <style>
-        /* [v5.0] 배민 스타일 라이트 모드 */
+        /* ============================================
+           Lunch Pro v6.0 - 완전 리뉴얼 UI
+           ============================================ */
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
         :root {
-            --primary: #FFE14D;      /* 배민 노랑 */
-            --primary-dark: #FFD600;
-            --primary-text: #1A1A1A; /* 노랑 위 텍스트 */
-            --bg: #F5F5F5;           /* 배민 연회색 배경 */
+            --primary: #1DC389;       /* 민트 그린 포인트 */
+            --primary-dark: #17A876;
+            --primary-light: #E8F8F3;
+            --primary-text: #FFFFFF;
+            --bg: #F7F8FA;
             --card: #FFFFFF;
-            --border: #E8E8E8;
-            --text: #1A1A1A;
-            --text-sub: #888888;
+            --border: #EEEEEE;
+            --text: #191919;
+            --text-sub: #777777;
             --text-light: #BBBBBB;
-            --accent: #FF6B6B;       /* 배민 레드 */
-            --accent-blue: #4E9BFF;
-            --accent-green: #2ECC71;
-            --shadow: 0 2px 12px rgba(0,0,0,0.08);
-            --shadow-hover: 0 4px 20px rgba(0,0,0,0.14);
-            --radius: 20px;
+            --accent: #FF4B4B;
+            --accent-orange: #FF8C00;
+            --shadow-sm: 0 1px 6px rgba(0,0,0,0.06);
+            --shadow: 0 2px 16px rgba(0,0,0,0.08);
+            --shadow-hover: 0 6px 24px rgba(0,0,0,0.13);
+            --radius: 16px;
             --radius-sm: 12px;
+            --radius-xs: 8px;
         }
-        * { box-sizing: border-box; }
-        body { font-family: 'Noto Sans KR', 'Pretendard', sans-serif; background: var(--bg); color: var(--text); margin: 0; text-align: center; }
-        .container { max-width: 720px; margin: 0 auto; padding: 16px; }
-        .card { background: var(--card); padding: 28px; border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 16px; position: relative; box-shadow: var(--shadow); }
-        .timer { font-size: 80px; color: var(--text); font-weight: 900; margin: 10px 0; font-variant-numeric: tabular-nums; letter-spacing: -2px; }
-        .timer.warning { color: var(--accent); animation: pulse 0.6s infinite alternate; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); margin: 0; -webkit-font-smoothing: antialiased; }
+        .container { max-width: 680px; margin: 0 auto; padding: 0 0 80px 0; }
+
+        /* ── 앱 헤더 ── */
+        .app-header {
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 100;
+            max-width: 680px; margin: 0 auto;
+        }
+        .app-header-logo { font-size: 18px; font-weight: 900; color: var(--text); letter-spacing: -0.5px; }
+        .app-header-logo span { color: var(--primary); }
+        .app-header-date { font-size: 12px; color: var(--text-sub); font-weight: 500; }
+
+        /* ── 카드 ── */
+        .card { background: var(--card); padding: 24px 20px; border-radius: var(--radius); border: 1px solid var(--border); margin: 12px 16px; position: relative; box-shadow: var(--shadow-sm); }
+        .card-flat { background: var(--card); padding: 20px; border-radius: var(--radius); border: none; margin: 0; position: relative; }
+        .timer { font-size: 72px; color: var(--text); font-weight: 900; margin: 8px 0; font-variant-numeric: tabular-nums; letter-spacing: -3px; line-height: 1; }
+        .timer.warning { color: var(--accent); animation: pulse 0.5s infinite alternate; }
         @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
-        .rule-text { font-size: 13px; color: #FF6B6B; font-weight: 700; line-height: 1.5; margin: 5px 0 15px 0; background: #FFF3F3; padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid #FFD6D6; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+        .rule-text { font-size: 12px; color: var(--accent-orange); font-weight: 700; line-height: 1.5; margin: 8px 0 14px; background: #FFF8F0; padding: 10px 14px; border-radius: var(--radius-xs); border: 1px solid #FFE0B2; }
+        .grid { display: flex; flex-direction: column; gap: 0; margin-top: 0; }
         .item { background: var(--card); padding: 18px; border-radius: var(--radius-sm); border: 2px solid var(--border); cursor: pointer; transition: all 0.15s; position: relative; color: var(--text); font-weight: 700; box-shadow: var(--shadow); }
-        .item:hover { border-color: var(--primary-dark); box-shadow: var(--shadow-hover); transform: translateY(-1px); }
-        .item.active { background: var(--primary); color: var(--primary-text); font-weight: 900; border-color: var(--primary-dark); box-shadow: 0 4px 16px rgba(255,214,0,0.4); }
-        .btn-main { width: 100%; padding: 16px; background: var(--primary); color: var(--primary-text); border: none; border-radius: var(--radius-sm); font-size: 16px; font-weight: 900; cursor: pointer; margin-bottom: 10px; transition: all 0.15s; box-shadow: 0 2px 8px rgba(255,214,0,0.3); }
-        .btn-main:hover { background: var(--primary-dark); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(255,214,0,0.4); }
-        .btn-sub { width: 100%; padding: 12px; background: #F8F8F8; color: #555; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; margin-bottom: 12px; transition: all 0.15s; }
-        .btn-sub:hover { background: #F0F0F0; border-color: #CCC; }
-        .progress-container { width: 100%; background: #F0F0F0; height: 8px; border-radius: 4px; margin-top: 10px; overflow: hidden; }
-        .progress-bar { height: 100%; background: var(--primary); transition: 0.3s; width: 0%; border-radius: 4px; }
-        .lucky-btn { background: #F8F8F8; color: #888; border: 1.5px solid var(--border); padding: 10px 15px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 15px; cursor: pointer; width: 100%; transition: all 0.15s; }
-        .lucky-btn:hover { background: #F0F0F0; }
+        .item:hover { background: var(--primary-light); color: var(--primary-dark); }
+        .item.active { background: var(--primary-light); color: var(--primary-dark); font-weight: 900; border-left: 3px solid var(--primary); }
+        .btn-main { width: 100%; padding: 16px; background: var(--primary); color: var(--primary-text); border: none; border-radius: var(--radius-sm); font-size: 15px; font-weight: 900; cursor: pointer; margin-bottom: 10px; transition: all 0.15s; letter-spacing: -0.3px; }
+        .btn-main:hover { background: var(--primary-dark); }
+        .btn-sub { width: 100%; padding: 12px; background: #F8F8F8; color: #555; border: 1px solid var(--border); border-radius: var(--radius-xs); font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 10px; transition: background 0.12s; }
+        .btn-sub:hover { background: #F0F0F0; }
+        .progress-container { width: 100%; background: #EEEEEE; height: 4px; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+        .progress-bar { height: 100%; background: var(--primary); transition: width 0.4s; width: 0%; border-radius: 2px; }
+        .lucky-btn { background: var(--primary-light); color: var(--primary-dark); border: 1px solid #B2EAD6; padding: 10px 15px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 12px; cursor: pointer; width: 100%; }
+        .lucky-btn:hover { background: #D4F5E9; }
         .hidden { display: none; }
-        .admin-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; background: var(--card); border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
+        .admin-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; background: var(--card); border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); }
         .admin-table th, .admin-table td { padding: 13px 14px; border-bottom: 1px solid var(--border); text-align: left; color: var(--text); }
-        .admin-table th { background: #FAFAFA; color: #555; font-weight: 700; font-size: 12px; letter-spacing: 0.03em; }
+        .admin-table th { background: #F7F8FA; color: var(--text-sub); font-weight: 700; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; }
         .admin-table tr:last-child td { border-bottom: none; }
         .admin-table tr:hover td { background: #FAFAFA; }
-        .summary-card { background: #FFFDE7; border: 1.5px solid var(--primary); padding: 16px; border-radius: var(--radius-sm); margin-top: 15px; text-align: left; }
+        .summary-card { background: var(--primary-light); border: 1.5px solid #B2EAD6; padding: 16px; border-radius: var(--radius-sm); margin-top: 12px; text-align: left; }
         .exclude-cb { transform: scale(1.2); cursor: pointer; accent-color: var(--accent); }
         .excluded-row { text-decoration: line-through; color: var(--text-light) !important; background: #FFF5F5; }
         .not-selected { color: var(--text-light); font-style: italic; }
         .pside-container { background: #FAFAFA; padding: 14px; border-radius: var(--radius-sm); border: 1.5px dashed var(--border); text-align: left; margin-top: 15px; }
         .pside-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; font-size: 14px; color: var(--text); }
         .pside-item input { transform: scale(1.2); margin-right: 8px; cursor: pointer; accent-color: var(--primary-dark); }
-        .admin-navbar { display: flex; background: #F0F0F0; border-radius: var(--radius-sm); padding: 4px; margin-bottom: 16px; border: none; gap: 4px; }
-        .admin-nav-item { flex: 1; padding: 12px; text-align: center; cursor: pointer; font-size: 14px; font-weight: 700; border-radius: 10px; color: #888; transition: all 0.2s; }
-        .admin-nav-item.active { background: var(--card); color: var(--text); box-shadow: var(--shadow); }
-        .badge-recent { position: absolute; top: 6px; right: 6px; background: var(--primary); color: var(--primary-text); font-size: 10px; font-weight: 900; padding: 2px 7px; border-radius: 8px; }
+        .admin-navbar { display: flex; background: var(--bg); border-radius: var(--radius-sm); padding: 4px; margin: 0 16px 12px; border: 1px solid var(--border); gap: 4px; }
+        .admin-nav-item { flex: 1; padding: 10px; text-align: center; cursor: pointer; font-size: 13px; font-weight: 700; border-radius: var(--radius-xs); color: var(--text-sub); transition: all 0.15s; }
+        .admin-nav-item.active { background: var(--card); color: var(--primary-dark); box-shadow: var(--shadow-sm); }
+        .badge-recent { position: absolute; top: 8px; right: 8px; background: var(--primary); color: var(--primary-text); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 20px; }
         .badge-visited { position: absolute; top: 6px; left: 6px; background: #FFF0F0; color: var(--accent); border: 1px solid #FFCDD2; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; }
         .badge-freq { position: absolute; bottom: 6px; left: 6px; background: #F0FFF4; color: #2ECC71; border: 1px solid #A8E6CF; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; pointer-events:none; }
 
@@ -70,7 +90,7 @@
         /* [v13.14] 투표 결과 발표 오버레이 */
         .result-overlay {
             position: fixed; inset: 0;
-            background: rgba(255,255,255,0.98);
+            background: rgba(247,248,250,0.98);
             z-index: 3000;
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
@@ -150,14 +170,14 @@
         @keyframes spin { to { transform: rotate(360deg); } }
 
         /* [v3.0] 메뉴 사진 카드 */
-        .menu-card { background: var(--card); border-radius: var(--radius-sm); border: 1.5px solid var(--border); cursor: pointer; transition: all 0.15s; position: relative; overflow: hidden; box-shadow: var(--shadow); }
-        .menu-card:hover { border-color: var(--primary-dark); box-shadow: var(--shadow-hover); transform: translateY(-1px); }
-        .menu-card.active { background: #FFFDE7; border-color: var(--primary-dark); box-shadow: 0 4px 16px rgba(255,214,0,0.3); }
+        .menu-card { background: var(--card); border-radius: var(--radius-sm); border: 1.5px solid var(--border); cursor: pointer; transition: all 0.12s; position: relative; overflow: hidden; box-shadow: var(--shadow-sm); }
+        .menu-card:hover { border-color: var(--primary); box-shadow: var(--shadow); }
+        .menu-card.active { background: var(--primary-light); border-color: var(--primary); box-shadow: 0 0 0 2px rgba(29,195,137,0.2); }
         .menu-card-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; background: #1e293b; display: block; }
         .menu-card-img-placeholder { width: 100%; aspect-ratio: 4/3; background: #F5F5F5; display: flex; align-items: center; justify-content: center; font-size: 28px; }
         .menu-card-body { padding: 10px 12px; }
-        .menu-card-name { font-size: 13px; color: var(--text); font-weight: 700; line-height: 1.3; margin-bottom: 4px; }
-        .menu-card-price { font-size: 13px; color: var(--accent); font-weight: 900; }
+        .menu-card-name { font-size: 12px; color: var(--text); font-weight: 700; line-height: 1.3; margin-bottom: 3px; }
+        .menu-card-price { font-size: 12px; color: var(--primary-dark); font-weight: 900; }
         .menu-card .badge-recent { top: 4px; right: 4px; font-size: 9px; padding: 2px 5px; }
         .menu-card .badge-freq { bottom: 4px; left: 4px; font-size: 9px; padding: 2px 5px; }
         /* 바텀시트 메뉴 사진 */
@@ -272,7 +292,7 @@
         .sidepanel-menu-item { display: flex; align-items: center; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--border); cursor: default; }
         .sidepanel-menu-item:last-child { border-bottom: none; }
         .sidepanel-menu-name { color: var(--text); font-size: 14px; flex: 1; font-weight: 500; }
-        .sidepanel-menu-price { color: var(--accent); font-weight: 700; font-size: 14px; white-space: nowrap; padding-right: 4px; }
+        .sidepanel-menu-price { color: var(--primary-dark); font-weight: 700; font-size: 13px; white-space: nowrap; padding-right: 4px; }
         .sidepanel-walkin-notice { text-align: center; padding: 30px 20px; color: #fba51a; font-size: 14px; }
         .sidepanel-footer {
             position: absolute; bottom: 0; left: 0; right: 0;
@@ -287,16 +307,33 @@
             transition: 0.15s;
         }
         .sidepanel-vote-btn:hover { filter: brightness(1.1); }
-        .sidepanel-vote-btn.already-voted { background: #F0F0F0; color: #AAA; cursor: default; }
+        .sidepanel-vote-btn.already-voted { background: #EEEEEE; color: var(--text-light); cursor: default; }
         /* 식당 카드형 버튼 */
-        .res-card { background: var(--card); border-radius: var(--radius-sm); border: 1.5px solid var(--border); cursor: pointer; transition: all 0.15s; padding: 16px; text-align: left; position: relative; box-shadow: var(--shadow); }
-        .res-card:hover { border-color: var(--primary-dark); box-shadow: var(--shadow-hover); transform: translateY(-1px); }
-        .res-card.active { border-color: var(--primary-dark); background: #FFFDE7; box-shadow: 0 4px 16px rgba(255,214,0,0.25); }
-        .res-card-name { font-size: 16px; font-weight: 900; color: var(--text); margin-bottom: 6px; }
-        .res-card.active .res-card-name { color: var(--primary-text); }
-        .res-card-preview { font-size: 12px; color: var(--text-sub); line-height: 1.6; }
-        .res-card-price { font-size: 11px; color: var(--text-light); margin-top: 4px; font-weight: 500; }
-        .res-card-voted-badge { position: absolute; top: 10px; right: 10px; background: var(--primary); color: var(--primary-text); font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 8px; }
+        /* ── 식당 가로 카드 ── */
+        .res-card {
+            display: flex; align-items: center; gap: 14px;
+            background: var(--card); border-radius: 0;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer; transition: background 0.12s;
+            padding: 14px 16px; text-align: left; position: relative;
+        }
+        .res-card:first-child { border-top: 1px solid var(--border); }
+        .res-card:hover { background: var(--primary-light); }
+        .res-card.active { background: var(--primary-light); border-left: 3px solid var(--primary); }
+        .res-card-thumb {
+            width: 70px; height: 70px; border-radius: var(--radius-xs);
+            object-fit: cover; flex-shrink: 0; background: #F0F0F0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; overflow: hidden;
+        }
+        .res-card-thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-xs); }
+        .res-card-info { flex: 1; min-width: 0; }
+        .res-card-name { font-size: 15px; font-weight: 900; color: var(--text); margin-bottom: 4px; }
+        .res-card.active .res-card-name { color: var(--primary-dark); }
+        .res-card-preview { font-size: 12px; color: var(--text-sub); line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .res-card-price { font-size: 12px; color: var(--primary-dark); font-weight: 700; margin-top: 4px; }
+        .res-card-arrow { color: var(--text-light); font-size: 14px; flex-shrink: 0; }
+        .res-card-voted-badge { background: var(--primary); color: var(--primary-text); font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 8px; }
         /* [v4.0] 일일 메뉴 배지 */
         .daily-menu-badge { display: inline-block; background: #FFFDE7; border: 1px solid var(--primary-dark); color: #B8860B; font-size: 10px; font-weight: bold; padding: 2px 7px; border-radius: 6px; margin-left: 6px; vertical-align: middle; }
         .res-card.daily-menu { border-color: var(--primary); }
@@ -306,8 +343,8 @@
         .sidepanel-daily-notice { font-size: 12px; color: #fba51a; background: rgba(251,165,26,0.08); border: 1px dashed rgba(251,165,26,0.4); border-radius: 8px; padding: 8px 12px; margin: 0 20px 4px; text-align: center; }
 
         /* [v3.5] 식당 카테고리 섹션 */
-        .res-category-section { margin-bottom: 22px; }
-        .res-category-title { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-sub); font-weight: 700; margin-bottom: 10px; padding-left: 2px; }
+        .res-category-section { margin-bottom: 0; }
+        .res-category-title { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-sub); font-weight: 700; margin: 0; padding: 10px 16px 8px; background: var(--bg); position: sticky; top: 57px; z-index: 10; }
         .res-category-title .cat-emoji { font-size: 15px; }
         .res-category-title .cat-count { color: #475569; font-weight: normal; font-size: 11px; }
         .res-category-divider { flex: 1; height: 1px; background: var(--border); }
@@ -328,14 +365,14 @@
         .order-progress-fill { height:100%; background:var(--primary); border-radius:6px; transition:width 0.5s ease; }
         .order-progress-fill.complete { background: linear-gradient(90deg, var(--primary), #60a5fa); animation: shimmer 1.5s infinite; }
         @keyframes shimmer { 0%{opacity:1} 50%{opacity:0.7} 100%{opacity:1} }
-        .complete-banner { text-align:center; padding:10px; background:#FFFDE7; border:1.5px solid var(--primary-dark); border-radius:12px; font-size:13px; font-weight:900; color:#B8860B; margin-top:8px; }
+        .complete-banner { text-align:center; padding:10px; background:var(--primary-light); border:1.5px solid var(--primary); border-radius:var(--radius-xs); font-size:13px; font-weight:900; color:var(--primary-dark); margin-top:8px; }
 
         /* [v13.9] 팀 현황판 */
         .team-board { background:#FAFAFA; border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px; margin-bottom:14px; }
         .team-board-title { font-size:12px; color:var(--text-sub); font-weight:700; margin-bottom:10px; }
         .team-board-grid { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px; }
         .team-member-card { background:var(--card); border-radius:10px; padding:8px 10px; border:1px solid var(--border); box-shadow:0 1px 4px rgba(0,0,0,0.06); }
-        .team-member-card.done { border-color: #A8E6CF; background:#F0FFF4; }
+        .team-member-card.done { border-color: #B2EAD6; background: var(--primary-light); }
         .team-member-card.absent { border-color: #FFCDD2; background:#FFF5F5; }
         .team-member-name { font-size:12px; color:var(--text-sub); margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500; }
         .team-member-menu { font-size:11px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -352,7 +389,7 @@
         .my-order-total { margin-top:8px; font-size:14px; font-weight:900; color:#B8860B; text-align:right; }
 
         /* [v13.6] 불참 버튼 */
-        .btn-absent { width:100%; padding:12px; background:#FFF5F5; color:var(--accent); border:1.5px solid #FFCDD2; border-radius:var(--radius-sm); font-size:14px; font-weight:700; cursor:pointer; margin-bottom:12px; transition:0.15s; }
+        .btn-absent { width:100%; padding:12px; background:#FFF5F5; color:var(--accent); border:1px solid #FFCDD2; border-radius:var(--radius-xs); font-size:13px; font-weight:700; cursor:pointer; margin-bottom:10px; transition:background 0.12s; }
         .btn-absent:hover { background:var(--accent); color:white; border-color:var(--accent); }
         /* [v13.6] 실시간 Top3 위젯 */
         .top3-widget { background:#FAFAFA; border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px; margin-bottom:14px; text-align:left; }
@@ -362,7 +399,7 @@
         .top3-bar-wrap { flex:1; background:#E8E8E8; border-radius:4px; height:8px; overflow:hidden; }
         .top3-bar { height:100%; border-radius:4px; transition:width 0.4s; }
         .top3-label { font-size:12px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:130px; font-weight:500; }
-        .top3-count { font-size:12px; color:var(--accent); font-weight:700; white-space:nowrap; }
+        .top3-count { font-size:12px; color:var(--primary-dark); font-weight:700; white-space:nowrap; }
 
         /* [v13.5] 현장주문 참석 선택 버튼 */
         .attend-btn { flex:1; padding:18px 10px; border-radius:16px; border:2px solid var(--border); background:#FAFAFA; cursor:pointer; font-size:22px; transition:0.15s; }
@@ -378,7 +415,7 @@
         .side-qty-price { font-size: 12px; color: var(--text-sub); margin: 0 10px; }
         .side-qty-ctrl { display: flex; align-items: center; gap: 8px; }
         .side-qty-btn { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: #F0F0F0; color: var(--text); font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1; }
-        .side-qty-btn:hover { background: var(--primary); color: var(--primary-text); border-color: var(--primary-dark); }
+        .side-qty-btn:hover { background: var(--primary); color: var(--primary-text); border-color: var(--primary); }
         .side-qty-num { min-width: 20px; text-align: center; font-weight: 700; color: var(--text); }
 
         /* 💡 [v12.0] 사이드 삭제 버튼 */
@@ -410,7 +447,7 @@
         }
         .vote-popup-overlay.show .vote-popup { transform: scale(1); }
         .vote-popup-emoji { font-size: 48px; margin-bottom: 12px; }
-        .vote-popup-res { font-size: 22px; font-weight: 900; color: var(--text); margin-bottom: 8px; }
+        .vote-popup-res { font-size: 20px; font-weight: 900; color: var(--primary-dark); margin-bottom: 8px; }
         .vote-popup-sub { font-size: 13px; color: var(--text-sub); line-height: 1.6; }
         .vote-popup-close {
             margin-top: 20px; width: 100%; padding: 12px;
@@ -439,10 +476,10 @@
         .order-popup-row:last-of-type { border-bottom: none; }
         .order-popup-label { color: var(--text-sub); }
         .order-popup-value { color: var(--text); font-weight: 700; text-align: right; max-width: 60%; }
-        .order-popup-total { margin-top: 12px; padding: 12px; background: #FFFDE7; border-radius: 12px; border: 1px solid var(--primary); font-size: 15px; font-weight: 900; color: #B8860B; }
+        .order-popup-total { margin-top: 12px; padding: 12px; background: var(--primary-light); border-radius: var(--radius-xs); border: 1px solid #B2EAD6; font-size: 15px; font-weight: 900; color: var(--primary-dark); }
         .order-popup-btn-row { display: flex; gap: 10px; margin-top: 16px; }
-        .order-popup-cancel { flex: 1; padding: 12px; background: #F0F0F0; color: #555; border: 1px solid var(--border); border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; }
-        .order-popup-confirm { flex: 2; padding: 12px; background: var(--primary); color: var(--primary-text); border: none; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        .order-popup-cancel { flex: 1; padding: 12px; background: #F5F5F5; color: var(--text-sub); border: none; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; }
+        .order-popup-confirm { flex: 2; padding: 12px; background: var(--primary); color: var(--primary-text); font-weight: 900; border: none; border-radius: 12px; font-size: 14px; font-weight: bold; cursor: pointer; }
 
         /* 💡 [v12.0] 관리자 30초 연장 버튼 */
         .btn-extend { width: 100%; padding: 10px; background: #FFFDE7; color: #B8860B; border: 1.5px solid var(--primary-dark); border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; cursor: pointer; margin-bottom: 12px; }
@@ -468,7 +505,7 @@
     <div class="order-popup-overlay" id="orderPopup">
         <div class="order-popup">
             <div style="font-size:42px; margin-bottom:12px;">🛒</div>
-            <div style="font-size:17px; font-weight:800; color:#fba51a; margin-bottom:16px;">주문 내역 확인</div>
+            <div style="font-size:16px; font-weight:900; color:var(--text); margin-bottom:16px;">주문 내역 확인</div>
             <div id="orderPopupBody"></div>
             <div id="orderPopupTotal" class="order-popup-total"></div>
             <div class="order-popup-btn-row">
@@ -540,14 +577,18 @@
     <div class="container">
         <div id="loading" style="color:var(--text-sub); padding:20px;">⚡ 데이터 동기화 중...</div>
 
-        <div id="adminStartSection" class="hidden" style="background:#FFFDE7; padding:16px; border-radius:16px; margin-bottom:16px; border:2px dashed var(--primary-dark);">
+        <div id="adminStartSection" class="hidden" style="background:var(--primary-light); padding:16px; border-radius:var(--radius-sm); margin:12px 16px 0; border:1.5px dashed #B2EAD6;">
             <h3 style="margin:0 0 10px 0; font-size:16px; color:var(--text);">🛠 관리자 빠른 제어</h3>
             <button class="btn-sub" onclick="copyLaunchNotice()">📋 [1단계] 투표 안내 쪽지 공지문 복사</button>
             <button class="btn-main" onclick="startSystem()">🚀 [2단계] 점심 투표 시작 (데이터 초기화)</button>
         </div>
 
         <div id="waitingSection" class="hidden">
-            <div class="card"><h2 style="color:var(--text);">😴 대기 중</h2><p style="color:#888;">관리자가 투표를 시작하면 활성화됩니다.</p></div>
+            <div class="card" style="margin-top:16px; text-align:center; padding:40px 20px;">
+                <div style="font-size:40px; margin-bottom:12px;">😴</div>
+                <div style="font-size:17px; font-weight:900; color:var(--text); margin-bottom:6px;">대기 중</div>
+                <div style="font-size:13px; color:var(--text-sub);">관리자가 투표를 시작하면 활성화됩니다</div>
+            </div>
         </div>
 
         <div id="votingSection" class="hidden">
@@ -555,19 +596,21 @@
             <div id="adminVoteControls" class="hidden" style="margin-bottom:10px;">
                 <button class="btn-extend" onclick="extendVoteTime()">⏱ 투표 시간 30초 연장</button>
             </div>
-            <div class="card">
-                <h2>🍴 식당 투표 (5분 마감)</h2>
-                <div class="timer" id="voteTimer">05:00</div>
-                <div class="rule-text">📢 식당은 과반수로 정해지게 됩니다<br>(미투표 시 투표인원들 중 과반수로 가게 됨)</div>
-                <div class="progress-container"><div id="voteProgress" class="progress-bar"></div></div>
-                <p id="voteCountText" style="font-size:12px; color:var(--primary); margin-top:5px;"></p>
+            <div style="background:var(--card); margin:12px 16px 0; border-radius:var(--radius); border:1px solid var(--border); box-shadow:var(--shadow-sm);">
+                <div style="padding:24px 20px 16px; text-align:center; border-bottom:1px solid var(--border);">
+                    <div style="font-size:12px; color:var(--text-sub); font-weight:600; margin-bottom:6px; letter-spacing:0.05em;">VOTE</div>
+                    <div class="timer" id="voteTimer">05:00</div>
+                    <div id="voteCountText" style="font-size:12px; color:var(--primary-dark); margin-top:6px; font-weight:600;"></div>
+                    <div class="progress-container" style="margin-top:10px;"><div id="voteProgress" class="progress-bar"></div></div>
+                </div>
+                <div class="rule-text" style="margin:12px 16px; border-radius:var(--radius-xs);">📢 식당은 과반수로 정해지게 됩니다<br>(미투표 시 투표인원들 중 과반수로 가게 됨)</div>
                 <div id="resGrid"></div>
             </div>
         </div>
 
         <div id="orderingSection" class="hidden">
             <div class="card">
-                <h2 id="winnerTitle" style="color:var(--text);">🏆 오늘의 식당</h2>
+                <div id="winnerTitle" style="font-size:22px; font-weight:900; color:var(--text); margin-bottom:4px;">🏆 오늘의 식당</div>
                 <div id="winnerAddress" class="hidden" style="font-size:12px; color:#94a3b8; margin-top:-8px; margin-bottom:12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center;">
                     <span>📍 <span id="winnerAddressText"></span></span>
                     <a id="winnerMapBtn" href="#" target="_blank" class="map-btn hidden">🗺 지도</a>
@@ -578,7 +621,7 @@
                     <div class="grid" id="userGrid"></div>
                     <hr style="border:0; border-top:1px solid #334155; margin:20px 0;">
                     <button id="randomBtn" class="lucky-btn" onclick="randomMenuSlot()">🎲 결정 장애? 슬롯머신!</button>
-                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:16px;" id="menuGrid"></div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin:16px 0 0;" id="menuGrid"></div>
                     
                     <div id="doubleSizeArea" class="pside-container hidden" style="border-color: var(--primary);">
                         <label style="display:flex; align-items:center; cursor:pointer; font-weight:bold; color:var(--primary);">
@@ -747,6 +790,12 @@
             try {
                 const res = await fetch(GAS_URL + "?type=get");
                 state = await res.json();
+                // 헤더 날짜 업데이트
+                const dateEl = document.getElementById('appHeaderDate');
+                if(dateEl) {
+                    const now = new Date();
+                    dateEl.innerText = `${now.getMonth()+1}월 ${now.getDate()}일 ${['일','월','화','수','목','금','토'][now.getDay()]}요일`;
+                }
 
                 // [v13.13] 서버 excludedNames + 불참자 + side키 모두 합쳐서 동기화
                 if(state.excludedNames) {
@@ -798,7 +847,7 @@
 
             // 카테고리별 그룹핑
             const grouped = {};
-            const order = []; // 등장 순서 유지
+            const order = [];
             (state.restaurants || []).forEach(resName => {
                 const details = state.restaurantDetails && state.restaurantDetails[resName];
                 const cat = (details && details.category) || '기타';
@@ -810,16 +859,15 @@
                 const section = document.createElement('div');
                 section.className = 'res-category-section';
                 const emoji = CATEGORY_EMOJI[cat] || '🍽';
-                section.innerHTML = `
-                    <div class="res-category-title">
-                        <span class="cat-emoji">${emoji}</span>
-                        <span>${cat}</span>
-                        <span class="cat-count">${grouped[cat].length}곳</span>
-                        <span class="res-category-divider"></span>
-                    </div>
-                    <div class="grid" style="margin-top:0;"></div>`;
-                const grid = section.querySelector('.grid');
 
+                // 카테고리 헤더
+                const catHeader = document.createElement('div');
+                catHeader.className = 'res-category-title';
+                catHeader.innerHTML = `<span>${emoji} ${cat}</span><span class="cat-count" style="color:var(--text-light); font-size:11px; margin-left:4px;">${grouped[cat].length}곳</span>`;
+                section.appendChild(catHeader);
+
+                // 식당 리스트
+                const list = document.createElement('div');
                 grouped[cat].forEach(resName => {
                     const div = document.createElement('div');
                     div.className = 'res-card';
@@ -827,33 +875,45 @@
                     if(alreadyVoted) div.classList.add('active');
 
                     const details = state.restaurantDetails && state.restaurantDetails[resName];
-                    let previewHtml = '';
-                    if(details && details.isWalkIn) {
-                        previewHtml = '<div class="res-card-preview">🏪 현장주문 식당</div>';
-                    } else if(details && details.menus && details.menus.length > 0) {
-                        const previewMenus = details.menus.slice(0, 3).map(m =>
-                            m.name.replace(/\(곱빼기 가능:.*\)/g,'').trim()
-                        ).join(' · ');
-                        // [v4.1] DailyMenu는 가격 표시 안 함
-                        const minPrice = Math.min(...details.menus.map(m => Number(m.price) || 0));
-                        previewHtml = `<div class="res-card-preview">${previewMenus}</div>
-                                       ${details.isDailyMenu ? '' : `<div class="res-card-price">${minPrice.toLocaleString()}원~</div>`}`;
-                    }
-
-                    const votedBadge = alreadyVoted ? '<span class="res-card-voted-badge">✓ 투표</span>' : '';
-                    // [v4.0] 일일 메뉴 식당 표시
                     const isDailyMenu = details && details.isDailyMenu;
                     if(isDailyMenu) div.classList.add('daily-menu');
-                    const dailyBadge = isDailyMenu ? '<span class="daily-menu-badge">오늘메뉴</span>' : '';
+
+                    // 대표 이미지 (메뉴 첫 번째 사진)
+                    const thumbSrc = details && details.menus && details.menus[0] && details.menus[0].image;
+                    const thumbHtml = thumbSrc
+                        ? `<div class="res-card-thumb"><img src="${thumbSrc}" alt="${resName}" onerror="this.parentElement.innerHTML='🍽';"></div>`
+                        : `<div class="res-card-thumb">${CATEGORY_EMOJI[cat] || '🍽'}</div>`;
+
+                    // 미리보기 텍스트
+                    let previewText = '';
+                    let priceText = '';
+                    if(details && details.isWalkIn) {
+                        previewText = '현장 주문 식당';
+                    } else if(details && details.menus && details.menus.length > 0) {
+                        previewText = details.menus.slice(0, 3).map(m =>
+                            m.name.replace(/\(곱빼기 가능:.*\)/g,'').trim()
+                        ).join(' · ');
+                        if(!isDailyMenu) {
+                            const minPrice = Math.min(...details.menus.map(m => Number(m.price) || 0));
+                            priceText = minPrice > 0 ? `${minPrice.toLocaleString()}원~` : '';
+                        }
+                    }
+
+                    const dailyBadge = isDailyMenu ? '<span class="daily-menu-badge" style="font-size:10px; padding:1px 6px; margin-left:5px;">오늘메뉴</span>' : '';
+                    const votedBadge = alreadyVoted ? '<span class="res-card-voted-badge">✓ 투표</span>' : '';
 
                     div.innerHTML = `
-                        ${votedBadge}
-                        <div class="res-card-name">${resName}${dailyBadge}</div>
-                        ${previewHtml}`;
+                        ${thumbHtml}
+                        <div class="res-card-info">
+                            <div class="res-card-name">${resName}${dailyBadge}</div>
+                            ${previewText ? `<div class="res-card-preview">${previewText}</div>` : ''}
+                            ${priceText ? `<div class="res-card-price">${priceText}</div>` : ''}
+                        </div>
+                        ${votedBadge || '<span class="res-card-arrow">›</span>'}`;
                     div.onclick = () => openResBottomSheet(resName);
-                    grid.appendChild(div);
+                    list.appendChild(div);
                 });
-
+                section.appendChild(list);
                 container.appendChild(section);
             });
         }
@@ -953,11 +1013,7 @@
             }
             selected.res = resName;
             sendVote();
-            document.querySelectorAll('#resGrid .res-card').forEach(el => {
-                const cardName = el.querySelector('.res-card-name') ? el.querySelector('.res-card-name').innerText.trim() : '';
-                el.classList.toggle('active', cardName === resName);
-            });
-            renderResGrid(); // 투표 배지 업데이트
+            renderResGrid(); // 투표 배지 포함 전체 재렌더
             document.getElementById('resBottomSheet').classList.remove('show');
             openVotePopup(resName);
         }
@@ -1363,7 +1419,8 @@
             );
             document.querySelectorAll('#resGrid .res-card').forEach(el => {
                 el.querySelectorAll('.badge-visited').forEach(b => b.remove());
-                const resName = el.querySelector('.res-card-name') ? el.querySelector('.res-card-name').innerText.trim() : el.innerText.trim();
+                const nameEl = el.querySelector('.res-card-name');
+                const resName = nameEl ? nameEl.childNodes[0].textContent.trim() : el.innerText.trim();
                 if(recentRes.has(resName)) {
                     // 가장 최근 방문일 찾기
                     const lastVisit = state.historyData.filter(h => h.restaurant === resName).map(h => h.date).sort().reverse()[0];
@@ -1714,8 +1771,8 @@
             Object.entries(grouped).forEach(([date, rows]) => {
                 // 날짜 헤더 행: 날짜 + 식당 + 삭제 버튼
                 const restaurants = [...new Set(rows.map(r => r.restaurant))].join(', ');
-                tbody.innerHTML += `<tr style="background:#FFFDE7; border-top:2px solid var(--border);">
-                    <td colspan="2" style="color:#B8860B; font-weight:900; font-size:13px; padding:10px 12px;">
+                tbody.innerHTML += `<tr style="background:var(--primary-light); border-top:1px solid var(--border);">
+                    <td colspan="2" style="color:var(--primary-dark); font-weight:700; font-size:12px; padding:8px 12px;">
                         📅 ${date.substring(5)} &nbsp;<span style="color:#94a3b8; font-weight:normal;">${restaurants}</span>
                     </td>
                     <td colspan="3" style="text-align:right; padding:10px 12px;">
@@ -2115,7 +2172,7 @@
         // [v2.1] 탭 타이틀 깜빡임 시작
         function startTabFlash() {
             if(tabFlashInterval) return; // 이미 실행 중이면 중복 방지
-            const originalTitle = 'Lunch Pro v5.0';
+            const originalTitle = '🍽 Lunch Pro';
             let isFlash = false;
             tabFlashInterval = setInterval(() => {
                 isFlash = !isFlash;
@@ -2129,7 +2186,7 @@
                 clearInterval(tabFlashInterval);
                 tabFlashInterval = null;
             }
-            document.title = 'Lunch Pro v5.0';
+            document.title = '🍽 Lunch Pro';
         }
 
         // [v13.14] 투표 결과 발표 오버레이
