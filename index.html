@@ -357,6 +357,22 @@
         .bottomsheet-menu-price { color: var(--primary); font-weight: bold; white-space: nowrap; }
         .bottomsheet-walkin-notice { text-align: center; padding: 20px; color: #fba51a; font-size: 13px; }
 
+        /* [v6.2] 이름 선택 칩 */
+        #userGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+        #userGrid .item {
+            padding: 12px 10px;
+            border-radius: var(--radius-sm) !important;
+            border: 1.5px solid var(--border) !important;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text) !important;
+            background: var(--card) !important;
+            box-shadow: var(--shadow-sm);
+        }
+        #userGrid .item:hover { background: var(--primary-light) !important; border-color: var(--primary) !important; color: var(--primary-dark) !important; }
+        #userGrid .item.active { background: var(--primary) !important; border-color: var(--primary-dark) !important; color: var(--primary-text) !important; box-shadow: 0 2px 8px rgba(29,195,137,0.3) !important; }
+
         /* [v13.9] 참여 현황 프로그레스바 */
         .progress-section { margin-bottom: 14px; }
         .progress-label { display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px; }
@@ -767,7 +783,7 @@
     <script>
         // [v4.2] GAS URL을 ?gas= 파라미터에서 읽기 (팀별 개별 시트 연동)
         const _params = new URLSearchParams(window.location.search);
-        const GAS_URL = _params.get('gas') || "https://script.google.com/macros/s/AKfycbznc02JGx6W7biuiLt9IliNfPxdBBs9vLv386bQ6VKZi_K0hMZDDZ3EyRKwDUsYcZDPLQ/exec";
+        const GAS_URL = _params.get('gas') || "https://script.google.com/macros/s/AKfycbxpuSMPxp-r6CHcbudbjc-kWD_lv6FYCsbD3fsNlmJBBAO1SSxpOwnqj82xjbx1VA4JyQ/exec";
         const isAdmin = _params.get('admin') === 'true';
 
         // GAS URL 없으면 안내 메시지
@@ -1148,13 +1164,30 @@
                     const pSideArea = document.getElementById('personalSideArea');
                     const randomBtn = document.getElementById('randomBtn');
 
-                    if(state.isWalkIn || state.isDailyMenu) {
-                        // [v4.1] 현장주문 또는 DailyMenu 식당 → 참석/불참 모드
+                    if(state.isDailyMenu) {
+                        // DailyMenu → 참석/불참 모드 (메뉴 숨김)
                         walkInArea.classList.remove('hidden');
                         menuGridEl.classList.add('hidden');
                         if(randomBtn) randomBtn.classList.add('hidden');
                         doubleSizeArea.classList.add('hidden');
                         pSideArea.classList.add('hidden');
+                    } else if(state.isWalkIn) {
+                        // [v6.2] 현장주문: 메뉴 표시(선택불가) + 참석/불참
+                        walkInArea.classList.remove('hidden');
+                        menuGridEl.classList.remove('hidden');
+                        menuGridEl.style.opacity = '0.6';
+                        menuGridEl.style.pointerEvents = 'none';
+                        if(randomBtn) randomBtn.classList.add('hidden');
+                        doubleSizeArea.classList.add('hidden');
+                        pSideArea.classList.add('hidden');
+                        // 메뉴 위에 안내
+                        if(!document.getElementById('walkInMenuNotice')) {
+                            const notice = document.createElement('div');
+                            notice.id = 'walkInMenuNotice';
+                            notice.style.cssText = 'font-size:11px; color:var(--accent); text-align:center; margin:8px 0 4px; font-weight:600;';
+                            notice.innerText = '🏪 메뉴는 현장에서 직접 주문합니다';
+                            menuGridEl.before(notice);
+                        }
                         // DailyMenu용 안내 문구 변경
                         const walkInTitle = document.getElementById('walkInTitle');
                         const walkInDesc = document.getElementById('walkInDesc');
@@ -1173,6 +1206,10 @@
                     } else {
                         walkInArea.classList.add('hidden');
                         menuGridEl.classList.remove('hidden');
+                        menuGridEl.style.opacity = '';
+                        menuGridEl.style.pointerEvents = '';
+                        const oldNotice = document.getElementById('walkInMenuNotice');
+                        if(oldNotice) oldNotice.remove();
                         if(randomBtn) randomBtn.classList.remove('hidden');
                         renderGrid('menuGrid', state.menus, (obj) => selectMainMenu(obj), true);
 
@@ -1728,7 +1765,7 @@
             summaryHtml += `<strong>💰 실제 결제 인원: ${currentEatingCount}명 (전체 ${totalEmployeesCount}명 중 ${currentExcludedCount}명 제외)</strong><br>`;
             summaryHtml += `<strong>💸 최종 정산 합계: ${currentTotalPrice.toLocaleString()}원</strong>`;
             summaryHtml += `<hr style="border-color:var(--primary); margin:10px 0;">`;
-            summaryHtml += `📱 식당 번호: <span style="color:#ffffff; font-weight:bold;">${state.phone || "미등록"}</span>`;
+            summaryHtml += `📱 식당 번호: <span style="color:var(--text); font-weight:700;">${state.phone || "미등록"}</span>`;
             document.getElementById('adminSummary').innerHTML = summaryHtml;
         }
 
