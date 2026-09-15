@@ -290,9 +290,9 @@
         .sidepanel-meta-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-sub); line-height: 1.5; }
         .sidepanel-body { flex: 1; overflow-y: auto; padding: 4px 8px 100px 0; }
         .sidepanel-menu-title { font-size: 11px; color: var(--text-light); font-weight: 700; letter-spacing: 0.08em; padding: 18px 24px 10px; }
-        .sidepanel-menu-item { display: flex; align-items: center; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--border); cursor: default; color: #1A1A1A; }
+        .sidepanel-menu-item { display: flex; align-items: center; gap: 16px; padding: 14px 24px; border-bottom: 1px solid var(--border); cursor: default; color: #111111 !important; }
         .sidepanel-menu-item:last-child { border-bottom: none; }
-        .sidepanel-menu-name { color: #1A1A1A; font-size: 14px; flex: 1; font-weight: 600; opacity: 1; }
+        .sidepanel-menu-name { color: #111111 !important; font-size: 14px; flex: 1; font-weight: 700; opacity: 1 !important; }
         .sidepanel-menu-price { color: var(--primary-dark); font-weight: 700; font-size: 13px; white-space: nowrap; padding-right: 4px; }
         .sidepanel-walkin-notice { text-align: center; padding: 30px 20px; color: #fba51a; font-size: 14px; }
         .sidepanel-footer {
@@ -744,13 +744,13 @@
                 <button class="btn-main" id="btnSaveHistory" onclick="saveTodayHistory()" style="margin-top:20px; background:#fba51a; color:#0f172a;">💾 오늘의 점심 최종 확정 및 기록</button>
             </div>
 
-            <div id="adminTabContent2" class="card hidden" style="border: 1px solid #475569; padding: 20px; text-align:left;">
+            <div id="adminTabContent2" class="card hidden" style="border: 1px solid var(--border); padding: 20px; text-align:left;">
                 <h3 style="color:var(--primary); margin-top:0;">📂 과거 점심 기록 조회 장부</h3>
                 <div style="margin-bottom:15px; display:flex; gap:10px;">
-                    <select id="filterRestaurant" style="flex:1; padding:10px; border-radius:8px; background:#0f172a; color:white; border:1px solid #475569; font-size:13px;" onchange="filterHistoryTable()">
+                    <select id="filterRestaurant" style="flex:1; padding:10px; border-radius:var(--radius-xs); background:var(--card); color:var(--text); border:1px solid var(--border); font-size:13px;" onchange="filterHistoryTable()">
                         <option value="">모든 식당 필터</option>
                     </select>
-                    <select id="filterDate" style="flex:1; padding:10px; border-radius:8px; background:#0f172a; color:white; border:1px solid #475569; font-size:13px;" onchange="filterHistoryTable()">
+                    <select id="filterDate" style="flex:1; padding:10px; border-radius:var(--radius-xs); background:var(--card); color:var(--text); border:1px solid var(--border); font-size:13px;" onchange="filterHistoryTable()">
                         <option value="">모든 날짜 필터</option>
                     </select>
                 </div>
@@ -762,14 +762,14 @@
                 </div>
             </div>
 
-            <div id="adminTabContent3" class="card hidden" style="border: 1px solid #475569; padding: 20px; text-align:left;">
-                <h3 style="color:var(--primary); margin-top:0;">📈 팀 점심 통계</h3>
+            <div id="adminTabContent3" class="card hidden" style="border: 1px solid var(--border); padding: 20px; text-align:left;">
+                <h3 style="color:var(--text); font-weight:900; margin-top:0; margin-bottom:14px;">📈 팀 점심 통계</h3>
 
                 <div style="display:flex; gap:10px; margin-bottom:15px;">
-                    <select id="statsFilterEmp" style="flex:1; padding:10px; border-radius:8px; background:#0f172a; color:white; border:1px solid #475569; font-size:13px;" onchange="renderHistoryStats()">
+                    <select id="statsFilterEmp" style="flex:1; padding:10px; border-radius:var(--radius-xs); background:var(--card); color:var(--text); border:1px solid var(--border); font-size:13px;" onchange="renderHistoryStats()">
                         <option value="">전체 인원</option>
                     </select>
-                    <select id="statsFilterRes" style="flex:1; padding:10px; border-radius:8px; background:#0f172a; color:white; border:1px solid #475569; font-size:13px;" onchange="renderHistoryStats()">
+                    <select id="statsFilterRes" style="flex:1; padding:10px; border-radius:var(--radius-xs); background:var(--card); color:var(--text); border:1px solid var(--border); font-size:13px;" onchange="renderHistoryStats()">
                         <option value="">전체 식당</option>
                     </select>
                 </div>
@@ -832,10 +832,19 @@
                 }
 
                 renderUI();
-                if(isAdmin && (state.status === "ORDERING" || state.status === "WAITING")) {
-                    renderAdminDashboard();
+                // [v6.3] 관리자: 전체 대시보드 / 비관리자: 히스토리+통계만
+                if(state.status === "ORDERING" || state.status === "WAITING") {
+                    if(isAdmin) {
+                        renderAdminDashboard();
+                    } else {
+                        // 비관리자는 대시보드 표시하되 정산탭 숨기고 통계탭만
+                        document.getElementById('adminDashboard').classList.remove('hidden');
+                        document.getElementById('adminTabContent1').classList.add('hidden');
+                        document.getElementById('tabBtn1').classList.add('hidden');
+                    }
                     if(state.historyData && state.historyData.length > 0) {
                         renderHistoryLogRoom();
+                        if(!isAdmin) renderHistoryStats();
                     }
                 }
                 if(state.status === "ORDERING") {
@@ -1105,6 +1114,7 @@
                 notificationSent = false;
                 stopTabFlash(); // [v2.1] 대기 상태 복귀 시 탭 타이틀 복원
                 document.getElementById('waitingSection').classList.remove('hidden');
+                // [v6.3] 비관리자는 WAITING에서 대시보드 숨김 (updateState에서 처리)
                 if(!isAdmin) document.getElementById('adminDashboard').classList.add('hidden');
 
             } else if(state.status === "VOTING") {
@@ -1144,8 +1154,12 @@
                 
                 // 💡 [v13.1] winner가 바뀌면(재투표/초기화 후) 그리드 강제 재렌더
                 const currentWinner = document.getElementById('userGrid').dataset.winner;
-                // [v3.7] winner 바뀌거나 메뉴 그리드 비었을 때만 재렌더 (이미지 깜빡임 방지)
+                // [v3.7] winner 바뀌거나 메뉴 그리드 비었을 때만 재렌더
                 const needsRender = !document.getElementById('menuGrid').children.length || currentWinner !== state.winner;
+                // [v6.3] 비관리자 초기 탭 설정
+                if(!isAdmin && document.getElementById('tabBtn1') && !document.getElementById('tabBtn1').classList.contains('hidden') === false) {
+                    switchAdminTab(3);
+                }
                 
                 const isOrdered = localStorage.getItem(todayKey);
                 if(needsRender) {
@@ -1164,44 +1178,40 @@
                     const pSideArea = document.getElementById('personalSideArea');
                     const randomBtn = document.getElementById('randomBtn');
 
-                    if(state.isDailyMenu) {
-                        // DailyMenu → 참석/불참 모드 (메뉴 숨김)
+                    if(state.isDailyMenu || state.isWalkIn) {
+                        // [v6.3] DailyMenu/현장주문: 참석/불참 상단 + 메뉴 하단 확인용 표시
                         walkInArea.classList.remove('hidden');
-                        menuGridEl.classList.add('hidden');
                         if(randomBtn) randomBtn.classList.add('hidden');
                         doubleSizeArea.classList.add('hidden');
                         pSideArea.classList.add('hidden');
-                    } else if(state.isWalkIn) {
-                        // [v6.2] 현장주문: 메뉴 표시(선택불가) + 참석/불참
-                        walkInArea.classList.remove('hidden');
-                        menuGridEl.classList.remove('hidden');
-                        menuGridEl.style.opacity = '0.6';
-                        menuGridEl.style.pointerEvents = 'none';
-                        if(randomBtn) randomBtn.classList.add('hidden');
-                        doubleSizeArea.classList.add('hidden');
-                        pSideArea.classList.add('hidden');
-                        // 메뉴 위에 안내
-                        if(!document.getElementById('walkInMenuNotice')) {
-                            const notice = document.createElement('div');
-                            notice.id = 'walkInMenuNotice';
-                            notice.style.cssText = 'font-size:11px; color:var(--accent); text-align:center; margin:8px 0 4px; font-weight:600;';
-                            notice.innerText = '🏪 메뉴는 현장에서 직접 주문합니다';
-                            menuGridEl.before(notice);
-                        }
-                        // DailyMenu용 안내 문구 변경
+
+                        // 안내 문구 설정
                         const walkInTitle = document.getElementById('walkInTitle');
                         const walkInDesc = document.getElementById('walkInDesc');
                         if(state.isDailyMenu) {
                             if(walkInTitle) walkInTitle.innerHTML = '🍽 오늘의 뷔페 메뉴';
-                            if(walkInDesc) {
-                                const menuPreview = (state.menus || []).map(m => m.name).join(' · ') || '';
-                                walkInDesc.innerHTML = menuPreview
-                                    ? `<span style="color:#e2e8f0;">${menuPreview}</span><br><br>참석 여부를 선택해주세요.`
-                                    : '참석 여부를 선택해주세요.';
-                            }
+                            if(walkInDesc) walkInDesc.innerHTML = '참석 여부를 선택해주세요.';
                         } else {
                             if(walkInTitle) walkInTitle.innerHTML = '🏪 현장 주문 식당';
-                            if(walkInDesc) walkInDesc.innerHTML = '메뉴는 식당에서 직접 선택합니다.<br>참석 여부만 선택해주세요.';
+                            if(walkInDesc) walkInDesc.innerHTML = '참석 여부만 선택해주세요.';
+                        }
+
+                        // 메뉴 확인용 표시 (선택 불가)
+                        if(state.menus && state.menus.length > 0 && !state.isDailyMenu) {
+                            menuGridEl.classList.remove('hidden');
+                            menuGridEl.style.opacity = '0.55';
+                            menuGridEl.style.pointerEvents = 'none';
+                            // 구분선 + 안내
+                            if(!document.getElementById('walkInMenuNotice')) {
+                                const sep = document.createElement('div');
+                                sep.id = 'walkInMenuNotice';
+                                sep.style.cssText = 'margin:20px 0 8px; padding-top:16px; border-top:1px solid var(--border); font-size:11px; color:var(--text-sub); text-align:center; font-weight:600; letter-spacing:0.05em;';
+                                sep.innerText = '📋 메뉴 확인용 (현장에서 직접 주문)';
+                                menuGridEl.before(sep);
+                            }
+                            renderGrid('menuGrid', state.menus, () => {}, true);
+                        } else {
+                            menuGridEl.classList.add('hidden');
                         }
                     } else {
                         walkInArea.classList.add('hidden');
@@ -1538,9 +1548,13 @@
         }
 
         function switchAdminTab(tabNum) {
+            // [v6.3] 비관리자는 탭1(정산) 접근 불가
+            if(tabNum === 1 && !isAdmin) tabNum = 3;
             [1,2,3].forEach(n => {
-                document.getElementById('tabBtn' + n).classList.toggle('active', tabNum === n);
-                document.getElementById('adminTabContent' + n).classList.toggle('hidden', tabNum !== n);
+                const btn = document.getElementById('tabBtn' + n);
+                const content = document.getElementById('adminTabContent' + n);
+                if(btn) btn.classList.toggle('active', tabNum === n);
+                if(content) content.classList.toggle('hidden', tabNum !== n);
             });
             if(tabNum === 3) renderHistoryStats();
         }
