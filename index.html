@@ -353,8 +353,8 @@
         /* 호환성: bottomsheet 클래스 별칭 유지 */
         .bottomsheet-menu-item { display: flex; justify-content: space-between; align-items: center; padding: 14px 24px; border-bottom: 1px solid #1e293b; font-size: 13px; gap: 16px; }
         .bottomsheet-menu-item:last-child { border-bottom: none; }
-        .bottomsheet-menu-name { color: #e2e8f0; }
-        .bottomsheet-menu-price { color: var(--primary); font-weight: bold; white-space: nowrap; }
+        .bottomsheet-menu-name { color: #111111 !important; font-weight: 600; }
+        .bottomsheet-menu-price { color: var(--primary-dark); font-weight: 700; white-space: nowrap; }
         .bottomsheet-walkin-notice { text-align: center; padding: 20px; color: #fba51a; font-size: 13px; }
 
         /* [v6.2] 이름 선택 칩 */
@@ -1014,7 +1014,7 @@
                         : `<div class="bs-menu-img-placeholder">🍽</div>`;
                     return `<div class="bottomsheet-menu-item" style="gap:12px;">
                         ${imgHtml}
-                        <span class="bottomsheet-menu-name" style="flex:1;">${cleanName}</span>
+                        <span class="bottomsheet-menu-name" style="flex:1; color:#111111; font-weight:600;">${cleanName}</span>
                         <span class="bottomsheet-menu-price">${Number(m.price).toLocaleString()}원</span>
                     </div>`;
                 }).join('');
