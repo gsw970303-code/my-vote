@@ -661,8 +661,8 @@
                     <!-- [v13.5] 현장주문 식당 참석 여부 선택 UI -->
                     <div id="walkInArea" class="hidden" style="margin-top:20px;">
                         <div style="background:rgba(251,165,26,0.08); border:1px dashed #fba51a; border-radius:16px; padding:16px; text-align:center;">
-                            <div style="font-size:13px; color:#fba51a; font-weight:bold; margin-bottom:4px;">🏪 현장 주문 식당</div>
-                            <div style="font-size:12px; color:#94a3b8; margin-bottom:16px;">메뉴는 식당에서 직접 선택합니다.<br>참석 여부만 선택해주세요.</div>
+                            <div id="walkInTitle" style="font-size:13px; color:#fba51a; font-weight:bold; margin-bottom:4px;">🏪 현장 주문 식당</div>
+                            <div id="walkInDesc" style="font-size:12px; color:#94a3b8; margin-bottom:16px;">메뉴는 식당에서 직접 선택합니다.<br>참석 여부만 선택해주세요.</div>
                             <div style="display:flex; gap:12px; justify-content:center;">
                                 <button class="attend-btn" id="attendYesBtn" onclick="selectAttend(true)">
                                     ✅<div class="attend-label" style="color:var(--primary);">참석</div>
@@ -783,7 +783,7 @@
     <script>
         // [v4.2] GAS URL을 ?gas= 파라미터에서 읽기 (팀별 개별 시트 연동)
         const _params = new URLSearchParams(window.location.search);
-        const GAS_URL = _params.get('gas') || "https://script.google.com/macros/s/AKfycbxpuSMPxp-r6CHcbudbjc-kWD_lv6FYCsbD3fsNlmJBBAO1SSxpOwnqj82xjbx1VA4JyQ/exec";
+        const GAS_URL = _params.get('gas') || "https://script.google.com/macros/s/AKfycbxKLlpnSddW2pxnujTIKrzJs55y36QqSY_pmOoYsvyv7XIsO2k2IWmTzmb9Brc27bQ0RA/exec";
         const isAdmin = _params.get('admin') === 'true';
 
         // GAS URL 없으면 안내 메시지
@@ -810,9 +810,30 @@
         let sideQtyMap = {};
         let pendingOrder = null; // 💡 [v13.0] 확인 팝업 대기 중인 주문 데이터
 
-        async function updateState() {
+        // ───── [v4.1] 성능 개선용 전역 상태 ─────
+        const SHOW_VISIT_BADGE = false;   // true 로 바꾸면 투표 화면에 '최근 방문' 배지 표시 (현재 동작 유지: 꺼짐)
+        let historyData = [];             // 히스토리는 폴링(type=get)과 분리해서 type=history 로 따로 조회
+        let historyLoadedAt = 0;
+        let historyLoading = false;
+        let historyDirty = { log: false, stats: false };
+        let updateInFlight = false;       // 이전 요청이 끝나기 전에 새 요청을 보내지 않음
+        let updateQueued = false;
+        let lastStatus = null;
+        let lastResGridKey = null;        // 식당 목록 데이터가 바뀔 때만 다시 그리기
+        let pollMode = null;
+        // 불참 처리된 주문인지 ([불참] 또는 뷔페 식당에서 '불참' 선택)
+        const isAbsentMenu = m => m === '[불참]' || m === '[뷔페] 불참';
+
+        async function updateState(force) {
+            // 탭이 백그라운드면 폴링 생략 (강제 호출 제외). 다시 보이면 visibilitychange 에서 즉시 갱신
+            if(document.hidden && force !== true) return;
+            // 이전 요청이 아직 진행 중이면 겹쳐 보내지 않음 (강제 호출은 끝난 뒤 한 번 더 실행)
+            if(updateInFlight) { if(force === true) updateQueued = true; return; }
+            updateInFlight = true;
+            const ctrl = new AbortController();
+            const abortTimer = setTimeout(() => ctrl.abort(), 15000);
             try {
-                const res = await fetch(GAS_URL + "?type=get");
+                const res = await fetch(GAS_URL + "?type=get", { signal: ctrl.signal });
                 state = await res.json();
                 // 헤더 날짜 업데이트
                 const dateEl = document.getElementById('appHeaderDate');
@@ -826,7 +847,7 @@
                     const sideKeys = [...excludedUsers].filter(k => k.startsWith('side_'));
                     // 불참자 추출 (orderData에서)
                     const absentNames = (state.orderData || [])
-                        .filter(o => o.menu === '[불참]')
+                        .filter(o => isAbsentMenu(o.menu))
                         .map(o => o.name);
                     excludedUsers = new Set([...state.excludedNames, ...absentNames, ...sideKeys]);
                 }
@@ -842,10 +863,9 @@
                         document.getElementById('adminTabContent1').classList.add('hidden');
                         document.getElementById('tabBtn1').classList.add('hidden');
                     }
-                    if(state.historyData && state.historyData.length > 0) {
-                        renderHistoryLogRoom();
-                        if(!isAdmin) renderHistoryStats();
-                    }
+                    // [v4.1] 히스토리는 최초 1회만 가져오고, 이후엔 탭을 열거나 저장/삭제할 때 갱신
+                    ensureHistoryLoaded();
+                    refreshVisibleHistoryTabs();
                 }
                 if(state.status === "ORDERING") {
                     // [v13.14] 처음 ORDERING 진입 시 결과 발표 오버레이
@@ -858,12 +878,23 @@
                     renderOrderProgress();
                     renderTeamBoard();
                 }
+                // 상태가 ORDERING 으로 바뀌는 순간 최신 히스토리 한 번 조회 (누적 인기 메뉴 등)
+                if(state.status !== lastStatus) {
+                    lastStatus = state.status;
+                    if(state.status === "ORDERING") loadHistory(true);
+                }
                 // [v13.14] VOTING 아닌 상태면 알림 플래그 리셋
                 if(state.status !== "VOTING") {
                     notificationSent = false;
                     stopTabFlash(); // [v2.1] 투표 끝나면 탭 타이틀 복원
                 }
-            } catch (e) {}
+                adjustPolling();
+            } catch (e) {
+            } finally {
+                clearTimeout(abortTimer);
+                updateInFlight = false;
+                if(updateQueued) { updateQueued = false; updateState(true); }
+            }
         }
 
         // [v13.11] 식당 미리보기 바텀시트 렌더
@@ -1046,7 +1077,7 @@
             }
             selected.res = resName;
             sendVote();
-            renderResGrid(); // 투표 배지 포함 전체 재렌더
+            renderResGrid(); if(SHOW_VISIT_BADGE) renderVoteBadges(); // 투표 배지 포함 전체 재렌더
             document.getElementById('resBottomSheet').classList.remove('show');
             openVotePopup(resName);
         }
@@ -1124,8 +1155,13 @@
                 // 관리자 연장 버튼 표시
                 if(isAdmin) document.getElementById('adminVoteControls').classList.remove('hidden');
 
-                renderResGrid();
-                renderVoteBadges();
+                // [v4.1] 식당 데이터/내 투표가 바뀐 경우에만 다시 그림 (폴링마다 전체 재렌더 방지)
+                const resKey = JSON.stringify([state.restaurants, state.restaurantDetails, selected.res, historyLoadedAt]);
+                if(resKey !== lastResGridKey) {
+                    lastResGridKey = resKey;
+                    renderResGrid();
+                    if(SHOW_VISIT_BADGE) renderVoteBadges();
+                }
                 startLocalTimer(state.endTime);
                 const percent = (state.voteCount / state.totalCount) * 100;
                 document.getElementById('voteProgress').style.width = percent + '%';
@@ -1190,7 +1226,7 @@
                         const walkInDesc = document.getElementById('walkInDesc');
                         if(state.isDailyMenu) {
                             if(walkInTitle) walkInTitle.innerHTML = '🍽 오늘의 뷔페 메뉴';
-                            if(walkInDesc) walkInDesc.innerHTML = '참석 여부를 선택해주세요.';
+                            if(walkInDesc) walkInDesc.innerHTML = (state.dailyMenuStr ? '오늘의 메뉴: ' + state.dailyMenuStr + '<br>' : '') + '참석 여부를 선택해주세요.';
                         } else {
                             if(walkInTitle) walkInTitle.innerHTML = '🏪 현장 주문 식당';
                             if(walkInDesc) walkInDesc.innerHTML = '참석 여부만 선택해주세요.';
@@ -1264,7 +1300,7 @@
                     type: "MULTI_ORDER", userName: selected.user, restaurant: state.winner,
                     mainMenu: "[불참]", mainPrice: -1, sides: []
                 })
-            }).then(updateState);
+            }).then(() => updateState(true));
         }
 
         // [v13.6] 실시간 Top3 메뉴 위젯 렌더링
@@ -1277,7 +1313,7 @@
             state.orderData.forEach(o => {
                 if(o.name.includes('[사이드]')) return;
                 if(o.menu.includes('(개인사이드)')) return;
-                if(o.menu.startsWith('[현장주문]') || o.menu === '[불참]') return;
+                if(o.menu.startsWith('[현장주문]') || o.menu.startsWith('[뷔페]') || o.menu === '[불참]') return;
                 const clean = o.menu.replace(' (곱빼기)', '').trim();
                 counts[clean] = (counts[clean] || 0) + 1;
             });
@@ -1311,17 +1347,17 @@
         function renderTop3Hist() {
             const widget = document.getElementById('top3HistBody');
             if(!widget) return;
-            if(!state.historyData || !state.historyData.length || !state.winner) {
+            if(!historyData || !historyData.length || !state.winner) {
                 widget.innerHTML = '<span style="color:#475569; font-size:12px;">히스토리 데이터 없음</span>';
                 return;
             }
             // 해당 식당의 메인 메뉴만 집계
             const counts = {};
-            state.historyData.forEach(h => {
+            historyData.forEach(h => {
                 if(h.restaurant !== state.winner) return;
                 if(h.name === '[사이드]') return;
                 if(h.menu.includes('(개인사이드)') || h.menu.includes('(사이드)')) return;
-                if(h.menu.startsWith('[현장주문]') || h.menu === '[불참]') return;
+                if(h.menu.startsWith('[현장주문]') || h.menu.startsWith('[뷔페]') || h.menu === '[불참]') return;
                 const clean = h.menu.replace(' (곱빼기)', '').trim();
                 counts[clean] = (counts[clean] || 0) + 1;
             });
@@ -1422,8 +1458,9 @@
             grid.innerHTML = state.employees.map(emp => {
                 const orders = orderMap[emp] || [];
                 const isExcluded = excludedUsers.has(emp); // [v13.10] 제외 여부
-                const isAbsent = orders.some(o => o.menu === '[불참]');
-                const isWalkIn = orders.some(o => o.menu.startsWith('[현장주문]'));
+                const isAbsent = orders.some(o => isAbsentMenu(o.menu));
+                const isBuffet = orders.some(o => o.menu.startsWith('[뷔페]'));
+                const isWalkIn = isBuffet || orders.some(o => o.menu.startsWith('[현장주문]'));
                 const hasDone = orders.length > 0;
 
                 let cardClass = 'team-member-card';
@@ -1439,7 +1476,7 @@
                 } else if(isWalkIn) {
                     cardClass += ' done';
                     const attending = orders[0].menu.includes('참석');
-                    menuHtml = `<div class="team-member-menu">${attending ? '✅ 현장주문' : '❌ 불참'}</div>`;
+                    menuHtml = `<div class="team-member-menu">${attending ? (isBuffet ? '✅ 뷔페 참석' : '✅ 현장주문') : '❌ 불참'}</div>`;
                 } else if(hasDone) {
                     cardClass += ' done';
                     const mainMenu = orders.find(o => !o.menu.includes('(개인사이드)'));
@@ -1465,10 +1502,10 @@
 
         // [v13.3] 투표 화면: 최근 3일 내 방문 식당에 경고 배지
         function renderVoteBadges() {
-            if(!state.historyData || !state.historyData.length) return;
-            const recentDates = [...new Set(state.historyData.map(h => h.date))].sort().reverse().slice(0, 3);
+            if(!historyData || !historyData.length) return;
+            const recentDates = [...new Set(historyData.map(h => h.date))].sort().reverse().slice(0, 3);
             const recentRes = new Set(
-                state.historyData
+                historyData
                     .filter(h => recentDates.includes(h.date))
                     .map(h => h.restaurant)
             );
@@ -1478,16 +1515,16 @@
                 const resName = nameEl ? nameEl.childNodes[0].textContent.trim() : el.innerText.trim();
                 if(recentRes.has(resName)) {
                     // 가장 최근 방문일 찾기
-                    const lastVisit = state.historyData.filter(h => h.restaurant === resName).map(h => h.date).sort().reverse()[0];
+                    const lastVisit = historyData.filter(h => h.restaurant === resName).map(h => h.date).sort().reverse()[0];
                     el.innerHTML += `<span class="badge-visited">최근 방문 ${lastVisit.substring(5)}</span>`;
                 }
             });
         }
 
         function highlightRecentMenu() {
-            if(!selected.user || !state.historyData) return;
+            if(!selected.user || !historyData) return;
             // [v13.3] 메인 메뉴만 필터 (개인사이드 제외)
-            const myHistory = state.historyData.filter(h =>
+            const myHistory = historyData.filter(h =>
                 h.name === selected.user &&
                 h.restaurant === state.winner &&
                 !h.menu.includes('(개인사이드)') &&
@@ -1556,7 +1593,8 @@
                 if(btn) btn.classList.toggle('active', tabNum === n);
                 if(content) content.classList.toggle('hidden', tabNum !== n);
             });
-            if(tabNum === 3) renderHistoryStats();
+            loadHistory(false); // 60초 이상 지났으면 최신 히스토리 재조회
+            refreshVisibleHistoryTabs();
         }
 
         // 사이드 수량 조절 UI
@@ -1610,7 +1648,7 @@
             Object.keys(sideQtyMap).forEach(k => sideQtyMap[k] = 0);
             renderSideQtyUI();
             alert("✅ 사이드 메뉴가 추가되었습니다!");
-            updateState();
+            updateState(true);
         }
 
         // 💡 [v12.0] 사이드 삭제 - 시트 내 사이드 행 번호(인덱스) 기준으로 삭제
@@ -1620,7 +1658,7 @@
                 method: "POST",
                 body: JSON.stringify({ type: "DELETE_SIDE", sideIndex: sideIndex })
             });
-            updateState();
+            updateState(true);
         }
 
         function renderAdminDashboard() {
@@ -1687,7 +1725,7 @@
                 } else {
                     // [현장주문] 표시
                     const isWalkInOrder = mainOrders.some(o => o.menu.startsWith('[현장주문]') || o.menu.startsWith('[뷔페]'));
-                    const isAbsent = mainOrders.some(o => o.menu === '[불참]');
+                    const isAbsent = mainOrders.some(o => isAbsentMenu(o.menu));
                     // [v13.13] 불참자 제외는 updateState의 excludedNames 동기화에서 처리
                     let menuDisplay, subTotal;
                     if(isAbsent) {
@@ -1783,76 +1821,121 @@
             document.getElementById('adminSummary').innerHTML = summaryHtml;
         }
 
-        function renderHistoryLogRoom() {
-            if(!state.historyData || state.historyData.length === 0) return;
+        // [v4.1] 히스토리 로딩 (폴링과 분리, 서버에서 10분 캐시)
+        async function loadHistory(force) {
+            if(historyLoading) return;
+            if(!force && historyLoadedAt && Date.now() - historyLoadedAt < 60000) return;
+            historyLoading = true;
+            try {
+                const res = await fetch(GAS_URL + "?type=history");
+                const data = await res.json();
+                historyData = Array.isArray(data.historyData) ? data.historyData : [];
+                historyLoadedAt = Date.now();
+                onHistoryChanged();
+            } catch(e) {
+            } finally {
+                historyLoading = false;
+            }
+        }
 
-            // [v13.2] 선택값 보존 후 매번 완전 재렌더 -> 오늘 저장 날짜도 즉시 반영
+        function ensureHistoryLoaded() {
+            if(!historyLoadedAt) loadHistory(false);
+        }
+
+        function onHistoryChanged() {
+            historyDirty.log = true;
+            historyDirty.stats = true;
+            refreshVisibleHistoryTabs();
+            if(state.status === "ORDERING") {
+                renderTop3Hist();
+                if(selected.user && !state.isWalkIn && !state.isDailyMenu) highlightRecentMenu();
+            }
+        }
+
+        // 보이는 탭만 렌더 (히스토리가 바뀐 경우에만)
+        function refreshVisibleHistoryTabs() {
+            const dash = document.getElementById('adminDashboard');
+            if(!dash || dash.classList.contains('hidden')) return;
+            const t2 = document.getElementById('adminTabContent2');
+            const t3 = document.getElementById('adminTabContent3');
+            if(historyDirty.log && t2 && !t2.classList.contains('hidden')) {
+                renderHistoryLogRoom();
+                historyDirty.log = false;
+            }
+            if(historyDirty.stats && t3 && !t3.classList.contains('hidden')) {
+                renderHistoryStats();
+                historyDirty.stats = false;
+            }
+        }
+
+        function renderHistoryLogRoom() {
+            // [v13.2] 선택값 보존 후 재렌더 -> 오늘 저장 날짜도 즉시 반영
             const resSelect = document.getElementById('filterRestaurant');
             const dateSelect = document.getElementById('filterDate');
             const prevRes = resSelect.value;
             const prevDate = dateSelect.value;
 
-            let uniqueRes = [...new Set(state.historyData.map(h => h.restaurant))];
-            resSelect.innerHTML = '<option value="">모든 식당 필터</option>';
-            uniqueRes.forEach(r => { resSelect.innerHTML += `<option value="${r}">${r}</option>`; });
+            const uniqueRes = [...new Set(historyData.map(h => h.restaurant))];
+            resSelect.innerHTML = '<option value="">모든 식당 필터</option>' +
+                uniqueRes.map(r => `<option value="${r}">${r}</option>`).join('');
             if(prevRes) resSelect.value = prevRes;
 
-            let uniqueDates = [...new Set(state.historyData.map(h => h.date))].sort().reverse();
-            dateSelect.innerHTML = '<option value="">모든 날짜 필터</option>';
-            uniqueDates.forEach(d => { dateSelect.innerHTML += `<option value="${d}">${d}</option>`; });
+            const uniqueDates = [...new Set(historyData.map(h => h.date))].sort().reverse();
+            dateSelect.innerHTML = '<option value="">모든 날짜 필터</option>' +
+                uniqueDates.map(d => `<option value="${d}">${d}</option>`).join('');
             if(prevDate) dateSelect.value = prevDate;
 
             filterHistoryTable();
-            renderHistoryStats();
         }
 
         function filterHistoryTable() {
             const selectedRes = document.getElementById('filterRestaurant').value;
             const selectedDate = document.getElementById('filterDate').value;
             const tbody = document.getElementById('historyTableBody');
-            let filteredData = state.historyData;
+            let filteredData = historyData;
             if(selectedRes) filteredData = filteredData.filter(h => h.restaurant === selectedRes);
             if(selectedDate) filteredData = filteredData.filter(h => h.date === selectedDate);
-            tbody.innerHTML = '';
 
             if(filteredData.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b; padding:16px;">조건에 맞는 내역이 없습니다.</td></tr>`;
                 return;
             }
 
-            // [v13.4] 날짜별로 그룹핑 후 날짜 헤더 행에 일괄 삭제 버튼 배치
+            // [v13.4] 날짜별로 그룹핑 (최신순)
             const grouped = {};
-            [...filteredData].reverse().forEach(h => {
+            for(let i = filteredData.length - 1; i >= 0; i--) {
+                const h = filteredData[i];
                 if(!grouped[h.date]) grouped[h.date] = [];
                 grouped[h.date].push(h);
-            });
+            }
 
+            // [v4.1] 문자열을 배열에 모아 한 번만 innerHTML 에 대입 (기존 += 반복은 O(n²))
+            const parts = [];
             Object.entries(grouped).forEach(([date, rows]) => {
-                // 날짜 헤더 행: 날짜 + 식당 + 삭제 버튼
                 const restaurants = [...new Set(rows.map(r => r.restaurant))].join(', ');
-                tbody.innerHTML += `<tr style="background:var(--primary-light); border-top:1px solid var(--border);">
+                // 삭제 버튼은 관리자에게만 표시
+                const delBtn = isAdmin ? `<button onclick="deleteHistoryDate('${date}')"
+                            style="background:rgba(244,63,94,0.15);border:1px solid #f43f5e;color:#f43f5e;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:bold;cursor:pointer;">
+                            🗑 ${date.substring(5)} 전체 삭제
+                        </button>` : '';
+                parts.push(`<tr style="background:var(--primary-light); border-top:1px solid var(--border);">
                     <td colspan="2" style="color:var(--primary-dark); font-weight:700; font-size:12px; padding:8px 12px;">
                         📅 ${date.substring(5)} &nbsp;<span style="color:#94a3b8; font-weight:normal;">${restaurants}</span>
                     </td>
-                    <td colspan="3" style="text-align:right; padding:10px 12px;">
-                        <button onclick="deleteHistoryDate('${date}')"
-                            style="background:rgba(244,63,94,0.15);border:1px solid #f43f5e;color:#f43f5e;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:bold;cursor:pointer;">
-                            🗑 ${date.substring(5)} 전체 삭제
-                        </button>
-                    </td>
-                </tr>`;
+                    <td colspan="3" style="text-align:right; padding:10px 12px;">${delBtn}</td>
+                </tr>`);
 
-                // 해당 날짜의 각 행
                 rows.forEach(h => {
-                    tbody.innerHTML += `<tr>
+                    parts.push(`<tr>
                         <td style="color:#64748b; font-size:12px;">${h.date.substring(5)}</td>
                         <td>${h.restaurant}</td>
                         <td>${h.name}</td>
                         <td>${h.menu}</td>
                         <td>${Number(h.price).toLocaleString()}원</td>
-                    </tr>`;
+                    </tr>`);
                 });
             });
+            tbody.innerHTML = parts.join('');
         }
 
         // [v13.3] 날짜별 히스토리 삭제
@@ -1863,12 +1946,13 @@
                 body: JSON.stringify({ type: "DELETE_HISTORY", date: date })
             });
             alert("삭제되었습니다.");
-            updateState();
+            loadHistory(true);
+            updateState(true);
         }
 
         // [v13.2] 통계 탭 렌더링
         function renderHistoryStats() {
-            if(!state.historyData || state.historyData.length === 0) {
+            if(!historyData || historyData.length === 0) {
                 document.getElementById('statsContainer').innerHTML = '<p style="color:#64748b; text-align:center;">저장된 히스토리가 없습니다.</p>';
                 return;
             }
@@ -1884,7 +1968,7 @@
                 !h.menu.includes('(개인사이드)') &&
                 !h.menu.includes('(사이드)');
 
-            const mainData = state.historyData.filter(isMainMenu);
+            const mainData = historyData.filter(isMainMenu);
 
             let uniqueEmps = [...new Set(mainData.map(h => h.name))].sort();
             empSel.innerHTML = '<option value="">전체 인원</option>';
@@ -1966,7 +2050,7 @@
             let dateHtml = '';
             if(!empSel.value && !resSel.value) {
                 const dateTotals = {};
-                state.historyData.forEach(h => {
+                historyData.forEach(h => {
                     dateTotals[h.date] = (dateTotals[h.date] || 0) + (Number(h.price) || 0);
                 });
                 const dateFiltered = Object.entries(dateTotals).sort((a,b) => b[0].localeCompare(a[0])).slice(0,10);
@@ -2050,7 +2134,7 @@
                 const orders = userOrdersMap[empName] || [];
                 const hasOrdered = orders.length > 0;
                 // [v13.6] 불참자는 미선택으로 카운트하지 않고 히스토리에도 저장 안 함
-                const isAbsent = orders.some(o => o.menu === '[불참]');
+                const isAbsent = orders.some(o => isAbsentMenu(o.menu));
                 if (!isExcluded && !hasOrdered && !isAbsent) unselectedUsers.push(empName);
                 if (!isExcluded && hasOrdered && !isAbsent) {
                     userOrdersMap[empName].forEach(o => { recordsToSave.push({ name: empName, menu: o.menu, price: o.price }); });
@@ -2071,7 +2155,8 @@
                 body: JSON.stringify({ type: "ADMIN_SAVE_HISTORY", restaurant: state.winner, records: recordsToSave })
             }).then(() => {
                 alert("오늘의 점심 최종 내역이 저장되었습니다!");
-                updateState();
+                loadHistory(true);
+                updateState(true);
             });
         }
 
@@ -2160,7 +2245,7 @@
                 if(diff <= 0) {
                     clearInterval(timerInterval);
                     // [v13.12] 타이머 종료 순간 즉시 updateState 한 번 호출 후 빠른 폴링 전환
-                    updateState();
+                    updateState(true);
                     setFastPolling();
                     return;
                 }
@@ -2181,18 +2266,26 @@
             }, 200);
         }
 
-        // 💡 [v13.0] 폴링 간격 조절 함수
-        function setFastPolling() {
-            if(pollingInterval && pollingInterval._isFast) return; // 이미 빠른 폴링 중이면 중복 방지
+        // 💡 [v4.1] 폴링 간격 조절 (같은 모드면 타이머를 다시 만들지 않음)
+        function setPolling(mode) {
+            if(pollMode === mode) return;
+            pollMode = mode;
             if(pollingInterval) clearInterval(pollingInterval);
-            const interval = setInterval(updateState, 1000);
-            interval._isFast = true;
-            pollingInterval = interval;
+            pollingInterval = setInterval(updateState, mode === 'fast' ? 1000 : 5000);
         }
-        function setNormalPolling() {
-            if(pollingInterval) clearInterval(pollingInterval);
-            pollingInterval = setInterval(updateState, 5000);
+        function setFastPolling() { setPolling('fast'); }
+        function setNormalPolling() { setPolling('normal'); }
+
+        // 투표 마감 직전에만 빠른 폴링, 그 외(WAITING/ORDERING/시간 연장 직후 등)는 일반 폴링으로 복귀
+        function adjustPolling() {
+            if(state.status === "VOTING" && state.endTime && (state.endTime - Date.now()) <= 12000) setFastPolling();
+            else setNormalPolling();
         }
+
+        // 탭이 다시 보이면 즉시 한 번 갱신
+        document.addEventListener('visibilitychange', () => {
+            if(!document.hidden) updateState(true);
+        });
 
         function startSystem() {
             if(!confirm("모든 기록을 초기화하고 투표를 시작하시겠습니까?")) return;
@@ -2626,7 +2719,7 @@
                         type: "MULTI_ORDER", userName: selected.user, restaurant: state.winner,
                         mainMenu: menuLabel, mainPrice: priceVal, sides: []
                     })
-                }).then(updateState);
+                }).then(() => updateState(true));
             } else {
                 fetch(GAS_URL, {
                     method: "POST",
@@ -2634,7 +2727,7 @@
                         type: "MULTI_ORDER", userName: selected.user, restaurant: state.winner,
                         mainMenu: selected.menu, mainPrice: pendingOrder.finalMainPrice, sides: pendingOrder.checkedSides
                     })
-                }).then(updateState);
+                }).then(() => updateState(true));
             }
             pendingOrder = null;
         }
@@ -2649,7 +2742,7 @@
                 confirmBtn.innerHTML = '✅ 주문 확정';
             }
             setFormDisabled(false);
-            updateState();
+            updateState(true);
         }
         function setFormDisabled(disabled) {
             document.getElementById('formContainer').classList.toggle('hidden', disabled);
@@ -2665,7 +2758,7 @@
         // [v13.14] 알림 권한 요청 (처음 방문 시)
         requestNotificationPermission();
         setNormalPolling();
-        updateState();
+        updateState(true);
     </script>
 </body>
 </html>
