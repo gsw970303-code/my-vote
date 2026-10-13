@@ -853,16 +853,9 @@
                 }
 
                 renderUI();
-                // [v6.3] 관리자: 전체 대시보드 / 비관리자: 히스토리+통계만
-                if(state.status === "ORDERING" || state.status === "WAITING") {
-                    if(isAdmin) {
-                        renderAdminDashboard();
-                    } else {
-                        // 비관리자는 대시보드 표시하되 정산탭 숨기고 통계탭만
-                        document.getElementById('adminDashboard').classList.remove('hidden');
-                        document.getElementById('adminTabContent1').classList.add('hidden');
-                        document.getElementById('tabBtn1').classList.add('hidden');
-                    }
+                // [롤백] 대시보드(정산/히스토리 장부/통계)는 관리자 전용. 일반 직원에게는 표시하지 않음
+                if(isAdmin && (state.status === "ORDERING" || state.status === "WAITING")) {
+                    renderAdminDashboard();
                     // [v4.1] 히스토리는 최초 1회만 가져오고, 이후엔 탭을 열거나 저장/삭제할 때 갱신
                     ensureHistoryLoaded();
                     refreshVisibleHistoryTabs();
@@ -1192,10 +1185,6 @@
                 const currentWinner = document.getElementById('userGrid').dataset.winner;
                 // [v3.7] winner 바뀌거나 메뉴 그리드 비었을 때만 재렌더
                 const needsRender = !document.getElementById('menuGrid').children.length || currentWinner !== state.winner;
-                // [v6.3] 비관리자 초기 탭 설정
-                if(!isAdmin && document.getElementById('tabBtn1') && !document.getElementById('tabBtn1').classList.contains('hidden') === false) {
-                    switchAdminTab(3);
-                }
                 
                 const isOrdered = localStorage.getItem(todayKey);
                 if(needsRender) {
