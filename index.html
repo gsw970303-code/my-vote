@@ -345,6 +345,16 @@
 
         /* [v3.5] 식당 카테고리 섹션 */
         .res-category-section { margin-bottom: 0; }
+        /* [v4.3] 관리자 식당 지정 화면 */
+        .admin-pick-overlay { position: fixed; inset: 0; background: var(--bg, #fff); z-index: 1500; display: none; flex-direction: column; }
+        .admin-pick-overlay.show { display: flex; }
+        .admin-pick-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border); background: var(--card, #fff); }
+        .admin-pick-head h3 { margin: 0; font-size: 16px; color: var(--text); }
+        .admin-pick-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-sub); padding: 4px 8px; }
+        .admin-pick-search { margin: 12px 16px 4px; }
+        .admin-pick-search input { width: 100%; box-sizing: border-box; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-xs); font-size: 14px; }
+        .admin-pick-hint { margin: 4px 16px 8px; font-size: 12px; color: var(--text-sub); }
+        .admin-pick-body { flex: 1; overflow-y: auto; padding-bottom: 24px; }
         .res-category-title { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-sub); font-weight: 700; margin: 0; padding: 12px 16px 8px; background: var(--bg); }
         .res-category-title .cat-emoji { font-size: 15px; }
         .res-category-title .cat-count { color: #475569; font-weight: normal; font-size: 11px; }
@@ -604,6 +614,19 @@
             <h3 style="margin:0 0 10px 0; font-size:16px; color:var(--text);">🛠 관리자 빠른 제어</h3>
             <button class="btn-sub" onclick="copyLaunchNotice()">📋 [1단계] 투표 안내 쪽지 공지문 복사</button>
             <button class="btn-main" onclick="startSystem()">🚀 [2단계] 점심 투표 시작 (데이터 초기화)</button>
+            <button class="btn-sub" onclick="openAdminPick()" style="border-color:#fba51a; color:#b45309; font-weight:800;">📌 관리자 식당 지정 (투표 없이 바로 메뉴 선택)</button>
+            <button class="btn-sub hidden" id="btnCopyPickNotice" onclick="copyPickNotice()">📋 지정 식당 주문 안내 공지문 복사</button>
+        </div>
+
+        <!-- [v4.3] 관리자 식당 지정 화면 -->
+        <div class="admin-pick-overlay" id="adminPickOverlay">
+            <div class="admin-pick-head">
+                <h3>📌 오늘의 식당 지정</h3>
+                <button class="admin-pick-close" onclick="closeAdminPick()">✕</button>
+            </div>
+            <div class="admin-pick-search"><input type="text" id="adminPickSearch" placeholder="식당 이름 검색" oninput="renderAdminPickList()"></div>
+            <div class="admin-pick-hint">식당을 누르면 메뉴를 확인하고 확정할 수 있어요. 확정하면 투표 없이 바로 직원 주문 단계로 넘어가고, 기존 투표·주문 기록은 초기화됩니다.</div>
+            <div class="admin-pick-body"><div id="adminPickGrid"></div></div>
         </div>
 
         <div id="waitingSection" class="hidden">
@@ -783,7 +806,7 @@
     <script>
         // [v4.2] GAS URL을 ?gas= 파라미터에서 읽기 (팀별 개별 시트 연동)
         const _params = new URLSearchParams(window.location.search);
-        const GAS_URL = _params.get('gas') || "https://script.google.com/macros/s/AKfycbxKLlpnSddW2pxnujTIKrzJs55y36QqSY_pmOoYsvyv7XIsO2k2IWmTzmb9Brc27bQ0RA/exec";
+        const GAS_URL = _params.get('gas') || "https://script.google.com/macros/s/AKfycbwcOBUMYZRHQNDXLhimYlcQ0eKgwExezJXpX0vAebU2jy2upPS4EJM1d0fgvpF2SU47_w/exec";
         const isAdmin = _params.get('admin') === 'true';
 
         // GAS URL 없으면 안내 메시지
@@ -821,6 +844,7 @@
         let lastStatus = null;
         let lastResGridKey = null;        // 식당 목록 데이터가 바뀔 때만 다시 그리기
         let pollMode = null;
+        let lastWinnerSeen = null;        // 관리자가 식당을 바꿔 지정하면 결과 발표를 다시 보여주기 위해 추적
         // 불참 처리된 주문인지 ([불참] 또는 뷔페 식당에서 '불참' 선택)
         const isAbsentMenu = m => m === '[불참]' || m === '[뷔페] 불참';
 
@@ -860,7 +884,11 @@
                     ensureHistoryLoaded();
                     refreshVisibleHistoryTabs();
                 }
+                const pickNoticeBtn = document.getElementById('btnCopyPickNotice');
+                if(pickNoticeBtn) pickNoticeBtn.classList.toggle('hidden', !(isAdmin && state.status === "ORDERING" && state.adminPicked));
                 if(state.status === "ORDERING") {
+                    if(lastWinnerSeen && state.winner && lastWinnerSeen !== state.winner) resultShown = false;
+                    if(state.winner) lastWinnerSeen = state.winner;
                     // [v13.14] 처음 ORDERING 진입 시 결과 발표 오버레이
                     if(!resultShown) {
                         resultShown = true;
@@ -898,15 +926,19 @@
             '족발/보쌈': '🐷', '고기': '🥩', '디저트': '🍰', '기타': '🍽'
         };
 
-        function renderResGrid() {
-            const container = document.getElementById('resGrid');
+        // opts: { containerId, src(restaurants/restaurantDetails 보유 객체), filter(검색어) } - 관리자 지정 화면에서 재사용
+        function renderResGrid(opts) {
+            opts = opts || {};
+            const src = opts.src || state;
+            const container = document.getElementById(opts.containerId || 'resGrid');
             container.innerHTML = '';
 
             // 카테고리별 그룹핑
             const grouped = {};
             const order = [];
-            (state.restaurants || []).forEach(resName => {
-                const details = state.restaurantDetails && state.restaurantDetails[resName];
+            (src.restaurants || []).forEach(resName => {
+                if(opts.filter && !String(resName).toLowerCase().includes(opts.filter)) return;
+                const details = src.restaurantDetails && src.restaurantDetails[resName];
                 const cat = (details && details.category) || '기타';
                 if(!grouped[cat]) { grouped[cat] = []; order.push(cat); }
                 grouped[cat].push(resName);
@@ -928,10 +960,10 @@
                 grouped[cat].forEach(resName => {
                     const div = document.createElement('div');
                     div.className = 'res-card';
-                    const alreadyVoted = selected.res === resName;
+                    const alreadyVoted = !opts.src && selected.res === resName;
                     if(alreadyVoted) div.classList.add('active');
 
-                    const details = state.restaurantDetails && state.restaurantDetails[resName];
+                    const details = src.restaurantDetails && src.restaurantDetails[resName];
                     const isDailyMenu = details && details.isDailyMenu;
                     if(isDailyMenu) div.classList.add('daily-menu');
 
@@ -967,7 +999,7 @@
                             ${priceText ? `<div class="res-card-price">${priceText}</div>` : ''}
                         </div>
                         ${votedBadge || '<span class="res-card-arrow">›</span>'}`;
-                    div.onclick = () => openResBottomSheet(resName);
+                    div.onclick = () => openResBottomSheet(resName, !!opts.src);
                     list.appendChild(div);
                 });
                 section.appendChild(list);
@@ -977,8 +1009,13 @@
 
 
 
-        function openResBottomSheet(resName) {
-            const details = state.restaurantDetails && state.restaurantDetails[resName];
+        let pickMode = false;     // true 이면 바텀시트가 '관리자 식당 지정' 용도로 동작
+        let pickData = null;      // ?type=restaurants 응답 { restaurants, restaurantDetails }
+
+        function openResBottomSheet(resName, fromPick) {
+            pickMode = fromPick === true;
+            const detailSrc = pickMode ? pickData : state;
+            const details = detailSrc && detailSrc.restaurantDetails && detailSrc.restaurantDetails[resName];
 
             document.getElementById('bsResName').innerText = resName;
 
@@ -1045,8 +1082,11 @@
             }
             // 투표 버튼 상태
             const voteBtn = document.getElementById('bsVoteBtn');
-            const alreadyVoted = selected.res === resName;
-            if(alreadyVoted) {
+            const alreadyVoted = !pickMode && selected.res === resName;
+            if(pickMode) {
+                voteBtn.textContent = `📌 ${resName} 오늘의 식당으로 확정`;
+                voteBtn.className = 'sidepanel-vote-btn';
+            } else if(alreadyVoted) {
                 voteBtn.textContent = '✅ 이미 투표한 식당입니다';
                 voteBtn.className = 'sidepanel-vote-btn already-voted';
             } else {
@@ -1064,6 +1104,7 @@
 
         function confirmResVote() {
             const resName = document.getElementById('bsVoteBtn').dataset.resname;
+            if(pickMode) { adminPickRestaurant(resName); return; }
             if(selected.res === resName) {
                 document.getElementById('resBottomSheet').classList.remove('show');
                 return;
@@ -2276,6 +2317,86 @@
             if(!document.hidden) updateState(true);
         });
 
+        // ───── [v4.3] 관리자 식당 지정 ─────
+        async function openAdminPick() {
+            const overlay = document.getElementById('adminPickOverlay');
+            const grid = document.getElementById('adminPickGrid');
+            overlay.classList.add('show');
+            document.getElementById('adminPickSearch').value = '';
+            if(!pickData) grid.innerHTML = '<div style="padding:30px 16px; color:var(--text-sub); text-align:center;">⚡ 식당 목록을 불러오는 중...</div>';
+            try {
+                const res = await fetch(GAS_URL + "?type=restaurants");
+                const data = await res.json();
+                if(!data || !Array.isArray(data.restaurants)) throw new Error('bad response');
+                pickData = data;
+                renderAdminPickList();
+            } catch(e) {
+                if(!pickData) grid.innerHTML = '<div style="padding:30px 16px; color:#f43f5e; text-align:center;">식당 목록을 불러오지 못했습니다. 닫고 다시 시도해주세요.</div>';
+                else renderAdminPickList();
+            }
+        }
+
+        function renderAdminPickList() {
+            if(!pickData) return;
+            const q = (document.getElementById('adminPickSearch').value || '').trim().toLowerCase();
+            renderResGrid({ containerId: 'adminPickGrid', src: pickData, filter: q });
+            if(!document.getElementById('adminPickGrid').children.length) {
+                document.getElementById('adminPickGrid').innerHTML = '<div style="padding:30px 16px; color:var(--text-sub); text-align:center;">검색 결과가 없습니다.</div>';
+            }
+        }
+
+        function closeAdminPick() {
+            document.getElementById('adminPickOverlay').classList.remove('show');
+            document.getElementById('resBottomSheet').classList.remove('show');
+            pickMode = false;
+        }
+
+        let pickSubmitting = false;
+        async function adminPickRestaurant(resName) {
+            if(pickSubmitting) return;
+            const msg = state.status === 'WAITING' || !state.status
+                ? `[${resName}]을(를) 오늘의 식당으로 확정하고\n바로 직원 메뉴 선택 단계로 넘어갈까요?`
+                : `[${resName}]을(를) 오늘의 식당으로 확정할까요?\n\n⚠️ 진행 중인 투표/주문 기록은 모두 초기화됩니다.`;
+            if(!confirm(msg)) return;
+            pickSubmitting = true;
+            const btn = document.getElementById('bsVoteBtn');
+            const prevText = btn.textContent;
+            btn.textContent = '⏳ 지정 중...';
+            try {
+                const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_PICK", restaurant: resName }) });
+                const data = await res.json();
+                if(data.result !== 'success') throw new Error(data.message || 'fail');
+                // 지정 직후 공지문 자동 복사 시도 (브라우저가 막으면 버튼으로 복사)
+                let copied = false;
+                try { await navigator.clipboard.writeText(buildPickNotice(resName)); copied = true; } catch(e) {}
+                alert(`✅ [${resName}] 지정 완료!\n직원들은 기존 링크로 들어오면 바로 메뉴를 선택할 수 있습니다.` +
+                      (copied ? '\n📋 안내 공지문이 클립보드에 복사되었습니다.' : '\n(공지문은 화면의 [지정 식당 주문 안내 공지문 복사] 버튼으로 복사하세요.)'));
+                // 새로고침 없이 상태만 갱신 (결과 오버레이가 다시 뜨도록 초기화)
+                resultShown = false;
+                closeAdminPick();
+                updateState(true);
+            } catch(e) {
+                alert('식당 지정에 실패했습니다. 잠시 후 다시 시도해주세요.');
+                btn.textContent = prevText;
+            } finally {
+                pickSubmitting = false;
+            }
+        }
+
+        function buildPickNotice(resName) {
+            const dateStr = state.sysDate || `${new Date().getMonth()+1}.${new Date().getDate()}`;
+            const baseUrl = window.location.href.split('?')[0];
+            const gasParam = _params.get('gas') ? `?gas=${encodeURIComponent(_params.get('gas'))}` : '';
+            const link = baseUrl + gasParam;
+            return `${dateStr} 회계팀 점심 메뉴 선택의 건\n\n안녕하십니까 회계팀 구수완입니다!\n\n금일 점심은 [${resName}]으로 정해졌습니다.\n아래 링크를 클릭하시어 메뉴 선택을 진행해주시기 바랍니다!\n\n링크: ${link}\n\n감사합니다.\n구수완 올림`;
+        }
+
+        function copyPickNotice() {
+            if(!state.winner) return;
+            navigator.clipboard.writeText(buildPickNotice(state.winner));
+            alert("📋 지정 식당 주문 안내 공지문이 클립보드에 복사되었습니다.");
+        }
+
         function startSystem() {
             if(!confirm("모든 기록을 초기화하고 투표를 시작하시겠습니까?")) return;
             fetch(GAS_URL, { method: "POST", body: JSON.stringify({ type: "ADMIN_START" }) })
@@ -2333,6 +2454,24 @@
         // [v13.14] 투표 결과 발표 오버레이
         function showResultOverlay() {
             if(!state.winner) return;
+            // [v4.3] 관리자 지정 식당: 투표 그래프 없이 간단 발표
+            if(state.adminPicked) {
+                const ov = document.getElementById('resultOverlay');
+                const t = ov.querySelector('.result-title');
+                const nameEl = document.getElementById('resultWinnerName');
+                const btn = document.getElementById('resultContinueBtn');
+                t.innerHTML = '📌 오늘의 식당';
+                t.style.color = '#fba51a';
+                nameEl.parentElement.querySelector('div').innerText = '오늘은 이 식당으로 정해졌어요';
+                nameEl.style.color = 'var(--primary)';
+                nameEl.style.fontSize = '32px';
+                nameEl.innerText = state.winner;
+                nameEl.classList.add('show');
+                document.getElementById('resultBars').innerHTML = '';
+                ov.classList.add('show');
+                setTimeout(() => { launchConfetti(false); btn.classList.add('show'); }, 700);
+                return;
+            }
             // voteCounts 없으면 winner 1표로 처리
             if(!state.voteCounts || Object.keys(state.voteCounts).length === 0) {
                 state.voteCounts = {};
